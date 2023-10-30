@@ -1,0 +1,277 @@
+<!--{% extends "layouts/base.html" %}-->
+<!--{% load static %}-->
+
+<!--{% block title %} Database Cleanup {% endblock %}-->
+
+<!--&lt;!&ndash; Specific Page CSS goes HERE  &ndash;&gt;-->
+<!--{% block stylesheets %}{% endblock stylesheets %}-->
+
+<!--{% block content %}-->
+<!--    &lt;!&ndash; Authentication Modal &ndash;&gt;-->
+<!--    <div class="modal fade" id="AuthenticationModal" tabindex="-1" role="dialog" aria-labelledby="AuthenticationModal" aria-hidden="true">-->
+<!--        <div class="modal-dialog modal-dialog-centered" role="document">-->
+<!--            <div class="modal-content">-->
+<!--                <div class="modal-header">-->
+<!--                    <h5 class="modal-title ml-2 font-weight-bolder" id="AuthenticationModalTitle">Authenticate</h5>-->
+<!--                    <button id="close-btn" type="button" class="close" data-dismiss="modal" aria-label="Close">-->
+<!--                        <span aria-hidden="true">&times;</span>-->
+<!--                    </button>-->
+<!--                </div>-->
+<!--                <div class="modal-body">-->
+<!--                    <form id="auth-form-collection" class="text-center">-->
+<!--                        {% csrf_token %}-->
+<!--                        <div class="row">-->
+<!--                            <label>To delete <a id="_collection" class="text-dark"></a> in <a id="_database" class="text-dark"></a>,-->
+<!--                                first authenticate yourself.</label>-->
+<!--                        </div>-->
+<!--                        <br>-->
+<!--                        <div class="form-group">-->
+<!--                            <label class="col-form-label text-dark" for="username">*Username: </label>-->
+<!--                            <input id="username-col" name="username" type="text" placeholder="Username" required>-->
+<!--                        </div>-->
+<!--                        <div class="form-group">-->
+<!--                            <label class="col-form-label text-dark" for="password">*Password: </label>-->
+<!--                            <input id="password-col" name="password" type="password" placeholder="Password" required>-->
+<!--                        </div>-->
+<!--                        <br>-->
+<!--                        <button type="submit" class="btn btn-primary">Authenticate</button>-->
+<!--                    </form>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </div>-->
+
+<!--    <div class="container-fluid py-4">-->
+<!--        <div class="row mb-4 mt-4">-->
+<!--            <div class="col-lg-12 col-md-12 mb-md-0 mb-4">-->
+<!--                <div class="card">-->
+<!--                    <div class="card-header pb-0">-->
+<!--                        <div class="row">-->
+<!--                            <div class="col-lg-6 col-7">-->
+
+<!--                            </div>-->
+<!--                            <div class="col-lg-6 col-5 my-auto text-end">-->
+<!--                                <div class="dropdown float-lg-end pe-4">-->
+<!--                                    <ul class="dropdown-menu px-2 py-3 ms-sm-n4 ms-n5" aria-labelledby="dropdownTable">-->
+<!--                                        <li><a class="dropdown-item border-radius-md" href="javascript:">Action</a>-->
+<!--                                        </li>-->
+<!--                                        <li><a class="dropdown-item border-radius-md" href="javascript:">Another-->
+<!--                                            action</a></li>-->
+<!--                                        <li><a class="dropdown-item border-radius-md" href="javascript:">Something else-->
+<!--                                            here</a></li>-->
+<!--                                    </ul>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                    <div class="card-body px-0 pb-2 items-center">-->
+
+<!--                        &lt;!&ndash; Mongo Databases &ndash;&gt;-->
+<!--                        <h4 class="ml-5" style="text-align: center;">Mongo Databases</h4>-->
+<!--                        <div class="row mt-5">-->
+<!--                            <div class="col-md-4"></div>-->
+<!--                            <div class="col-md-2">-->
+<!--                                <h6 class="mt-2">Databases : </h6>-->
+<!--                            </div>-->
+<!--                            <div class="col-md-3">-->
+<!--                                <select id="select-database" multiple="true"-->
+<!--                                        class="mul-select form-select form-select-lg mr-3 branch_s listbox">-->
+<!--                                    {% for db in databases %}-->
+<!--                                        <option value={{ db }} {% if db in database %} selected {% endif %}>{{ db }}-->
+<!--                                        </option>-->
+<!--                                    {% endfor %}-->
+<!--                                </select>-->
+<!--                            </div>-->
+<!--                            <br>-->
+<!--                            <div class="row mt-3">-->
+<!--                                <div class="col-md-5"></div>-->
+<!--                                <div class="col-md-4">-->
+<!--                                    <button id="collection-btn" class="btn btn-primary" {% if not databases %} disabled-->
+<!--                                    {% endif %}>Get Collections-->
+<!--                                    </button>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                        <hr>-->
+<!--                        <br>-->
+<!--                        &lt;!&ndash; Databases Collections &ndash;&gt;-->
+<!--                        <h4 class="ml-5" id="collection_headline" style="text-align: center;">Selected Database-->
+<!--                            Collections</h4>-->
+<!--                        <div class="card-body px-0 pb-2">-->
+<!--                            <div class="table-responsive p-5">-->
+<!--                                <table class="table mb-0">-->
+<!--                                    <thead class="text-center text-white bg-gradient-primary shadow-primary">-->
+<!--                                    <tr>-->
+<!--                                        <th class="text-uppercase">-->
+<!--                                            Database-->
+<!--                                        </th>-->
+<!--                                        <th class="text-uppercase">-->
+<!--                                            Collection-->
+<!--                                        </th>-->
+<!--                                        <th class="text-uppercase">-->
+<!--                                            Days Difference-->
+<!--                                        </th>-->
+<!--                                        <th class="text-uppercase">-->
+<!--                                            Action-->
+<!--                                        </th>-->
+<!--                                    </tr>-->
+<!--                                    </thead>-->
+<!--                                    <tbody class="text-center">-->
+<!--                                    {% if not collections %}-->
+<!--                                        <tr>-->
+<!--                                            <td></td>-->
+<!--                                            <td class="pt-5 font-weight-bolder text-uppercase">No Collections</td>-->
+<!--                                            <td></td>-->
+<!--                                        </tr>-->
+<!--                                    {% endif %}-->
+<!--                                    {% for collection in collections %}-->
+<!--                                        <tr class="pt-4">-->
+<!--                                            <td>-->
+<!--                                                {{ collection.database }}-->
+<!--                                            </td>-->
+<!--                                            <td>-->
+<!--                                                {{ collection.collection }}-->
+<!--                                            </td>-->
+<!--                                            <td>-->
+<!--                                                {{ collection.days_diff }}-->
+<!--                                            </td>-->
+<!--                                            <td>-->
+<!--                                                <button class="btn btn-primary"-->
+<!--                                                        onclick="return deleteCollectionAction('{{collection.database}}', '{{collection.collection}}')">-->
+<!--                                                    Delete-->
+<!--                                                </button>-->
+<!--                                            </td>-->
+<!--                                        </tr>-->
+<!--                                    {% endfor %}-->
+<!--                                    </tbody>-->
+<!--                                </table>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                        <hr>-->
+<!--                        &lt;!&ndash; Delete Database &ndash;&gt;-->
+<!--                        <br>-->
+<!--                        <h4 class="ml-5" style="text-align: center;">Delete Database</h4>-->
+<!--                        <div class="row mt-5">-->
+<!--                            <div class="col-md-4"></div>-->
+<!--                            <div class="col-md-2">-->
+<!--                                <h6 class="mt-2">Database Name: </h6>-->
+<!--                            </div>-->
+<!--                            <div class="col-md-2">-->
+<!--                                <input id="database-del-input" name="database" type="text">-->
+<!--                                <div class="error" id="database-error"></div>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                        <br>-->
+<!--                        <div class="row mt-3">-->
+<!--                            <div class="col-md-5"></div>-->
+<!--                            <div class="col-md-5">-->
+<!--                                <form id="auth-form-database">-->
+<!--                                    {% csrf_token %}-->
+<!--                                    <div class="form-group">-->
+<!--                                        <label for="username">Username:</label>-->
+<!--                                        <input class="auth_user" id="username-db" name="username" type="text"-->
+<!--                                               placeholder="Username" required>-->
+<!--                                    </div>-->
+<!--                                    <div class="form-group">-->
+<!--                                        <label for="password">Password:</label>-->
+<!--                                        <input class="auth_user" id="password-db" name="password" type="password"-->
+<!--                                               class="form-control" placeholder="Password" required>-->
+<!--                                    </div>-->
+<!--                                    <br>-->
+<!--                                    <button type="submit" class="btn btn-primary">Authenticate</button>-->
+<!--                                </form>-->
+<!--                                <button id="delete-database-btn" class="btn btn-primary" disabled>Delete Database-->
+<!--                                </button>-->
+
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--        </div>-->
+<!--        <script>-->
+<!--            $(document).ready(function () {-->
+<!--                $(".mul-select").select2({-->
+<!--                    placeholder: " select database",-->
+<!--                    tags: true,-->
+<!--                });-->
+<!--            })-->
+<!--            $('#delete-btn').click(function () {-->
+<!--                deleteCollection();-->
+<!--                $("#delete-btn").prop('disabled', true);-->
+<!--            });-->
+
+<!--            $('#delete-database-btn').click(function () {-->
+<!--                deleteDatabase();-->
+<!--                $("#delete-database-btn").prop('disabled', true);-->
+
+<!--            });-->
+
+<!--            $('#collection-btn').click(function () {-->
+<!--                getDbCollections();-->
+<!--            });-->
+
+<!--            $('#database').keypress(function () {-->
+<!--                printError("database-error", " ");-->
+<!--            });-->
+
+<!--            $('#collection').keypress(function () {-->
+<!--                printError("collection-error", "");-->
+<!--            });-->
+
+<!--            $('#auth-form').submit(function (event) {-->
+<!--                event.preventDefault();-->
+<!--                const data = $('#auth-form').serializeArray().reduce(function (obj, item) {-->
+<!--                    obj[item.name] = item.value;-->
+<!--                    return obj;-->
+<!--                }, {});-->
+
+<!--                let username = data.username-->
+<!--                let password = data.password-->
+
+<!--                authenticateUser('{{ csrf_token }}', username, password);-->
+<!--            });-->
+
+<!--            $('#auth-form-database').submit(function (event) {-->
+<!--                event.preventDefault();-->
+<!--                const data = $('#auth-form-database').serializeArray().reduce(function (obj, item) {-->
+<!--                    obj[item.name] = item.value;-->
+<!--                    return obj;-->
+<!--                }, {});-->
+
+<!--                let username = data.username-->
+<!--                let password = data.password-->
+
+<!--                authenticateUserDatabase('{{ csrf_token }}', username, password);-->
+<!--            });-->
+
+<!--            $('#auth-form-collection').submit(function (event) {-->
+<!--                event.preventDefault();-->
+
+<!--                var username = $("#username-col").val();-->
+<!--                var password = $("#password-col").val();-->
+
+<!--                authenticateCollectionUser('{{ csrf_token }}', username, password);-->
+<!--            });-->
+
+<!--            // delete collection on click function-->
+<!--            function deleteCollectionAction(database, collection) {-->
+<!--                $("#_database").text(database);-->
+<!--                $("#_collection").text(collection);-->
+<!--                $("#AuthenticationModal").modal('show');-->
+<!--            };-->
+
+<!--            $('#close-btn').click(function () {-->
+<!--                $("#AuthenticationModal").modal('hide');-->
+<!--            });-->
+
+<!--        </script>-->
+<!--        {% include 'includes/footer.html' %}-->
+<!--    </div>-->
+<!--{% endblock content %}-->
+
+<!--&lt;!&ndash; Specific Page JS goes HERE  &ndash;&gt;-->
+<!--{% block javascript %}-->
+
+<!--{% endblock javascript %}-->

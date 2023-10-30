@@ -1,0 +1,252 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+{% block title %} Add Metadata {% endblock %}
+
+{% block stylesheets %}{% endblock stylesheets %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4 mt-4">
+        <div class="col-lg-12 col-md-12 mb-md-0 mb-4">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <div class="row">
+                        <div class="col-lg-6 col-7">
+
+                        </div>
+                        <div class="col-lg-6 col-5 my-auto text-end">
+                            <div class="dropdown float-lg-end pe-4">
+                                <ul class="dropdown-menu px-2 py-3 ms-sm-n4 ms-n5" aria-labelledby="dropdownTable">
+                                    <li><a class="dropdown-item border-radius-md" href="javascript:">Action</a>
+                                    </li>
+                                    <li><a class="dropdown-item border-radius-md" href="javascript:">Another
+                                            action</a></li>
+                                    <li><a class="dropdown-item border-radius-md" href="javascript:">Something else
+                                            here</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body px-0 pb-2 items-center">
+
+                    <!-- Add Metadata -->
+                    <br>
+                    <h4 class="ml-5" style="text-align: center;">Add Metadata</h4>
+                    <br>
+                    <div class="row mt-3">
+                        <div class="col-md-4"></div>
+                        <div class="col-md-4">
+                            <form id="meta-form" action="{% url 'home:metadata' %}" method="post">
+                                {% csrf_token %}
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label for="databaseName">
+                                            <h6>Database Name:</h6>
+                                        </label>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="form-group">
+                                            <input type="text" class="form-control border border-dark" id="databaseName"
+                                                name="databaseName" pattern="^[a-zA-Z0-9_]+$" required>
+                                            <div class="invalid-feedback">
+                                                Please enter a valid database name.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="color: red;" class="text-center" id="metaError">
+                                    {% if error_message %}
+                                        {{ error_message }}
+                                        <script>
+                                            // JavaScript to hide the error message after 10 seconds
+                                            setTimeout(function() {
+                                                document.getElementById('metaError').style.display = 'none';
+                                            }, 10000); // 10000 milliseconds = 10 seconds
+                                        </script>
+                                    {% endif %}
+                                </div>
+
+                                <script>
+                                    // Select the input element
+                                    const databaseNameInput = document.getElementById('databaseName');
+
+                                    // Add an event listener to the input element to check validity and apply classes
+                                    databaseNameInput.addEventListener('input', function () {
+                                        if (databaseNameInput.checkValidity()) {
+                                            // Input is valid
+                                            databaseNameInput.classList.remove('is-invalid');
+                                            databaseNameInput.classList.add('is-valid');
+                                        } else {
+                                            // Input is invalid
+                                            databaseNameInput.classList.remove('is-valid');
+                                            databaseNameInput.classList.add('is-invalid');
+                                        }
+                                    });
+                                </script>
+
+                                <br>
+
+                                <div class="form-group">
+                                    <label for="numCollections">
+                                        <h6>Number of Collections (1-10000):</h6>
+                                    </label>
+                                    <input type="number" id="numCollections" name="numCollections" min="1" max="10000"
+                                        required>
+                                </div>
+                                <br>
+
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <label for="colNames">
+                                            <h6>Collection Names (comma-separated):</h6>
+                                        </label>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="form-group">
+                                            <input type="text" class="form-control border border-dark" id="colNames"
+                                                name="colNames" pattern="^[a-zA-Z0-9_,]+$" required>
+                                            <div class="invalid-feedback">
+                                                Please enter valid collection names (comma-separated).
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <script>
+                                    // Select the input element
+                                    const colNamesInput = document.getElementById('colNames');
+
+                                    // Add an event listener to the input element to check validity and apply classes
+                                    colNamesInput.addEventListener('input', function () {
+                                        if (colNamesInput.checkValidity()) {
+                                            // Input is valid
+                                            colNamesInput.classList.remove('is-invalid');
+                                            colNamesInput.classList.add('is-valid');
+                                        } else {
+                                            // Input is invalid
+                                            colNamesInput.classList.remove('is-valid');
+                                            colNamesInput.classList.add('is-invalid');
+                                        }
+                                    });
+                                </script>
+
+                                <br>
+
+                                <div class="form-group">
+                                    <label for="numDocuments">
+                                        <h6>Number of Documents (1-10000):</h6>
+                                    </label>
+                                    <input type="number" id="numDocuments" name="numDocuments" min="1" max="10000"
+                                        required>
+                                </div>
+                                <br>
+
+                                <div class="form-group">
+                                    <label for="numFields">
+                                        <h6>Number of Fields (1-10000):</h6>
+                                    </label>
+                                    <input type="number" id="numFields" name="numFields" min="1" max="10000" required>
+                                </div>
+                                <br>
+
+                                <div class="form-group">
+                                    <label for="fieldLabels">
+                                        <h6>Field Labels (comma-separated):</h6>
+                                    </label>
+                                    <input type="text" id="fieldLabels" name="fieldLabels" required>
+                                </div>
+
+                                <br>
+                                <div style="color: red;" class="text-center" id="metaError"></div>
+                                <br>
+                            
+                                <div class="form-group" style="text-align: center;">
+                                    <button type="submit" class="btn btn-primary">Submit</button>
+                                </div>
+                                <br>
+                            </form>
+                        </div>
+                        <div class="col-md-4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <script>
+        function printError(elementId, hintMessage) {
+            document.getElementById(elementId).innerHTML = hintMessage;
+        }
+
+        $('#databaseName').keypress(function () {
+            printError("metaError", "");
+        });
+
+        $('#numCollections').keypress(function () {
+            printError("metaError", "");
+        });
+
+        $('#colNames').keypress(function () {
+            printError("metaError", "");
+        });
+
+        $('#numDocuments').keypress(function () {
+            printError("metaError", "");
+        });
+
+        $('#numFields').keypress(function () {
+            printError("metaError", "");
+        });
+
+        $('#fieldLabels').keypress(function () {
+            printError("metaError", "");
+        });
+
+        $('#meta-form').submit(function validateForm() {
+            var databaseName = $("#databaseName").val();
+            var numCollections = parseInt($("#numCollections").val());
+            var colNames = $("#colNames").val();
+            var numDocuments = parseInt($("#numDocuments").val());
+            var numFields = parseInt($("#numFields").val());
+            var fieldLabels = $("#fieldLabels").val();
+
+            // Database Name validation
+            if (databaseName.includes(" ")) {
+                printError("metaError", "Error: Database Name should not contain spaces.");
+                return false;
+            }
+
+            // Collection Names validation
+            { #var colNamesArray = colNames.split(",");# }
+            { #colNamesArray = colNamesArray.map(label => label.trim());# }
+            {## }
+            {
+                #if(colNamesArray.length !== numCollections) {# }
+                {#    printError("metaError", `Error: Number of Collection Names should be equal to the Number of Collections (${numCollections}).`);# }
+                {#    return false;# }
+                {## }
+                {## }
+                {## }
+                {#// Field Labels validation#}
+                    { #var fieldLabelsArray = fieldLabels.split(",");# }
+                    { #fieldLabelsArray = fieldLabelsArray.map(label => label.trim());# }
+                    {## }
+                    {
+                        #if(fieldLabelsArray.length !== numFields) {# }
+                        {#    printError("metaError", `Error: Number of Field Labels should be equal to the Number of Fields (${numFields}).`);# }
+                        {#    return false;# }
+                        {## }
+
+                        return true; // Allow form submission
+                    });
+    </script>
+    {% include 'includes/footer.html' %}
+</div>
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascript %}
+
+{% endblock javascript %}

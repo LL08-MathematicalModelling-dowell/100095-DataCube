@@ -1,0 +1,169 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+{% csrf_token %}
+{% block title %} Data View {% endblock %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}{% endblock stylesheets %}
+
+{% block content %}
+    <div class="container-fluid py-4">
+        <div class="row mt-4">
+            <div class="col-lg-12 col-12 mx-auto position-relative">
+                <div class="card">
+                    <div class="card-header ">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h3>Dynamic Data View</h3>
+                            </div>
+                        </div>
+                        <div class="row">
+                            {#                            <div class="col-md-3"></div>#}
+                            <div class="col-md-3">
+                                <select id="select-databases" class="form-select form-select-lg mr-3 branch_s"
+                                        style="background-color: white; color: black;">
+                                    <option value="select" selected>Select Database</option>
+                                    {% for db in databases %}
+                                        <option value="{{ db }}">{{ db }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="select-collections" class="form-select form-select-lg mr-3 branch_s"
+                                        style="background-color: white; color: black;">
+                                    <option value="select" selected>Select Collection</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <select id="sort_select" class="form-select form-select-lg mr-3 branch_s"
+                                        style="background-color: white;">
+                                    <option value="asc">ASC</option>
+                                    <option value="desc">DESC</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <select id="per_page__select"
+                                        class="form-select form-select-lg mr-3 branch_s per_page__select"
+                                        style="background-color: white;">
+                                    <option value="1">1</option>
+                                    <option value="2" selected>2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mt-2">
+                                <input type="text" placeholder="type a query  { 'field': 'value' }" class="form-group"
+                                       style="width: 100%;" id="query_filter">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="button" id="fetch_btn" class="btn btn-sm btn-primary mt-2">Fetch</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body mt-0">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <button class="btn btn-sm btn-outline-secondary" id="collapse-btn">Collapse</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="expand-btn">Expand</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="toggle-btn">Toggle</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="toggle-level1-btn">Toggle level1
+                                </button>
+                                {#                            <button class="btn btn-sm btn-outline-secondary" id="toggle-level2-btn">Toggle level2#}
+                                {#                            </button>#}
+                            </div>
+
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="text-lg-right mt-3 ml-auto">
+                                 <span id="pagination_para"> Showing <span id="start" value="0"></span> - <span
+                                         id="end"></span> of <span
+                                         id="total"></span> records</span> &nbsp;&nbsp;&nbsp; <i
+                                        class="fa fa-angle-left" style="font-size:19px"
+                                        onclick="pagination_left('{{ csrf_token }}')"></i>
+                                    &nbsp;
+                                    <i class="fa fa-angle-right" style="font-size:19px"
+                                       onclick="pagination_right('{{ csrf_token }}')"></i>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="text-lg-right mt-3 ml-auto">
+                                    <span><b>Collection:</b> </span>
+                                    <span id="collec_name"> _ </span> &nbsp;&nbsp;
+                                    <b>Sort: </b><span id="sort_name">asc</span> &nbsp;&nbsp;
+                                    <b>Per Page: </b> <span id="per_page">5</span> &nbsp;
+                                    <b>Filter: </b> <span id="filter_name">{}</span>
+                                </p>
+                            </div>
+                        </div>
+
+
+                        <div id="json"></div>
+
+
+                        <p class="text-lg-right mt-3 ml-auto">
+                        <span id="pagination_para"> Showing <span id="start1" data-value="2"></span> - <span
+                                id="end1"></span> of <span
+                                id="total1"></span> records</span> &nbsp;&nbsp;&nbsp; <i
+                                class="fa fa-angle-left" style="font-size:19px"
+                                onclick="pagination_left1('{{ csrf_token }}')"></i> &nbsp;
+                            <i class="fa fa-angle-right" style="font-size:19px"
+                               onclick="pagination_right1('{{ csrf_token }}')"></i>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#select-databases').on('change', function () {
+                let db = $(this).val();
+                getCollectionsDataView('{{ csrf_token }}', db);
+            })
+
+            var json = {"collection_name": "collection"}
+            $("#json").JSONView(json);
+
+            $("#json-collapsed").JSONView(json, {collapsed: true, nl2br: true, recursive_collapser: true});
+
+            $('#collapse-btn').on('click', function () {
+                $('#json').JSONView('collapse');
+            });
+
+            $('#expand-btn').on('click', function () {
+                $('#json').JSONView('expand');
+            });
+
+            $('#toggle-btn').on('click', function () {
+                $('#json').JSONView('toggle');
+            });
+
+            $('#toggle-level1-btn').on('click', function () {
+                $('#json').JSONView('toggle', 1);
+            });
+
+            $("#fetch_btn").click(function () {
+                var coll_name = $('#select-collections').val();
+                var sort_name = $('#sort_select').find(":selected").val();
+                var per_page__select = parseInt($('#per_page__select').find(":selected").val());
+                var filter = $("#query_filter").val();
+                $("#collec_name").html(coll_name);
+                $("#sort_name").html(sort_name);
+                $("#filter_name").html(filter);
+
+                loadMongoCollection(1, per_page__select, coll_name, sort_name, filter, '{{ csrf_token }}');
+            });
+        });
+    </script>
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascript %}
+
+{% endblock javascript %}

@@ -1,0 +1,99 @@
+<!--{% extends "layouts/base.html" %}-->
+<!--{% load static %}-->
+<!--{% block title %} Backup {% endblock %}-->
+<!--{% csrf_token %}-->
+
+<!--&lt;!&ndash; Specific Page CSS goes HERE  &ndash;&gt;-->
+<!--{% block stylesheets %}{% endblock stylesheets %}-->
+
+<!--{% block content %}-->
+<!--    <div class="container-fluid py-4">-->
+<!--        <div class="row mb-4 mt-4">-->
+<!--            <div class="col-lg-12 col-md-12 mb-md-0 mb-4">-->
+<!--                <div class="card">-->
+<!--                    <div class="card-header pb-0">-->
+<!--                        <div class="row">-->
+<!--                            <div class="col-lg-6 col-7">-->
+
+<!--                            </div>-->
+<!--                            <div class="col-lg-6 col-5 my-auto text-end">-->
+<!--                                <div class="dropdown float-lg-end pe-4">-->
+<!--                                    <ul class="dropdown-menu px-2 py-3 ms-sm-n4 ms-n5" aria-labelledby="dropdownTable">-->
+<!--                                        <li><a class="dropdown-item border-radius-md" href="javascript:">Action</a>-->
+<!--                                        </li>-->
+<!--                                        <li><a class="dropdown-item border-radius-md" href="javascript:">Another-->
+<!--                                            action</a></li>-->
+<!--                                        <li><a class="dropdown-item border-radius-md" href="javascript:">Something else-->
+<!--                                            here</a></li>-->
+<!--                                    </ul>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+
+<!--                    <div class="card-body px-0 pb-1">-->
+<!--                        <h4 class="ml-5" style="text-align: center;">Backup</h4>-->
+<!--                        <div class="row px-5 my-5">-->
+<!--                            &lt;!&ndash; Databases dropdowns &ndash;&gt;-->
+<!--                            <div class="col-md-1"></div>-->
+<!--                            <div class="col-md-2">-->
+<!--                                <h6>Databases:</h6>-->
+<!--                            </div>-->
+
+<!--                            <div class="col-md-3">-->
+<!--                                <select id="select-databases" multiple="true"-->
+<!--                                class="mul-select form-select form-select-lg mr-3 branch_s listbox">-->
+<!--                                    {% for db in db_info %}-->
+<!--                                        <option value="{{ db }}">{{ db }}</option>-->
+<!--                                    {% endfor %}-->
+<!--                                </select>-->
+<!--                            </div>-->
+
+<!--                            &lt;!&ndash; Collections dropdowns &ndash;&gt;-->
+<!--                            <div class="col-md-2">-->
+<!--                                <h6>Collections:</h6>-->
+<!--                            </div>-->
+
+<!--                            <div class="col-md-3">-->
+<!--                                <select id="select-collections" multiple="true"-->
+<!--                                        class="mul-select form-select form-select-lg mr-3 branch_s listbox"></select>-->
+<!--                            </div>-->
+<!--                        </div>-->
+
+<!--                        <div style="text-align: center;">-->
+<!--                            <button id="backup-btn" class="btn btn-primary mt-2">Take Backup</button>-->
+<!--                        </div>-->
+<!--                        <br>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <div class="d-none" id="overlay" onclick="hideDropdown()"></div>-->
+
+<!--        </div>-->
+<!--        <script>-->
+<!--            $(document).ready(function () {-->
+<!--                $("#select-databases").select2({-->
+<!--                    placeholder: " Search & Select Databases",-->
+<!--                    closeOnSelect : false,-->
+<!--                }).on('change', function () {-->
+<!--                    getCollectionsBackup('{{ csrf_token }}')-->
+<!--                });-->
+
+<!--                // get collections against selected databases-->
+<!--                $('#select-collections').select2({-->
+<!--                    placeholder: "Search & Select Collections",-->
+<!--                });-->
+
+<!--                $('#backup-btn').on('click', function () {-->
+<!--                    takeDatabaseBackupPage('{{ csrf_token }}');-->
+<!--                });-->
+<!--            });-->
+<!--        </script>-->
+<!--        {% include 'includes/footer.html' %}-->
+<!--    </div>-->
+<!--{% endblock content %}-->
+
+<!--&lt;!&ndash; Specific Page JS goes HERE  &ndash;&gt;-->
+<!--{% block javascript %}-->
+
+<!--{% endblock javascript %}-->
