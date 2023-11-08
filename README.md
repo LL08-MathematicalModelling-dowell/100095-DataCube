@@ -59,7 +59,7 @@ This API enables you to retrieve data from a specific collection in the Dowell d
 
 ```json
 {
-    "api-key": "your-dowell-api-key",
+    "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "fetch",
@@ -73,7 +73,7 @@ This API enables you to retrieve data from a specific collection in the Dowell d
 
 #### Parameters
 
-- `api-key` (required): Your Dowell API key.
+- `api_key` (required): Your Dowell API key.
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection to fetch data from.
 - `operation`: The operation type, which is "fetch" for this request.
@@ -90,7 +90,7 @@ import json
 url = "https://datacube.uxlivinglab.online/db_api/get_data/"
 
 data = {
-    "api-key": "your-dowell-api-key",
+    "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "fetch",
@@ -119,7 +119,7 @@ Use this API to add data to a specific collection within the Dowell database.
 
 ```json
 {
-    "api-key": "your-dowell-api-key",
+    "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "insert",
@@ -136,7 +136,7 @@ Use this API to add data to a specific collection within the Dowell database.
 
 #### Parameters
 
-- `api-key` (required): Your Dowell API key.
+- `api_key` (required): Your Dowell API key.
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection for data insertion.
 - `operation`: The operation type, which is "insert" for this request.
@@ -190,7 +190,7 @@ Use this API to update data in a specific collection within the Dowell database.
 
 ```json
 {
-    "api-key": "your-dowell-api-key",
+    "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "update",
@@ -207,7 +207,7 @@ Use this API to update data in a specific collection within the Dowell database.
 
 #### Parameters
 
-- `api-key` (required): Your DoWell API key.
+- `api_key` (required): Your DoWell API key.
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection to update data in.
 - `operation`: The operation type, which is "update" for this request.
@@ -220,7 +220,7 @@ import requests
 import json
 
 data = {
-    "api-key": "your-dowell-api-key",
+    "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "update",
@@ -251,7 +251,7 @@ Use this API to remove data from a specific collection within the Dowell databas
 
 ```json
 {
-    "api-key": "your-dowell-api-key",
+    "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "delete",
@@ -263,7 +263,7 @@ Use this API to remove data from a specific collection within the Dowell databas
 
 #### Parameters
 
-- `api-key` (required): Your Dowell API key.
+- `api_key` (required): Your Dowell API key.
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection from which data will be deleted.
 - `operation`: The operation type, which is "delete" for this request.
@@ -276,7 +276,7 @@ import requests
 import json
 
 data = {
-    "api-key": "your-dowell-api-key",
+    "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "delete",
@@ -312,7 +312,7 @@ The Metadata View API allows you to add collections to a specified database with
 ```
 #### Parameters
 
-- `api-key` (required): Your Dowell API key.
+- `api_key` (required): Your Dowell API key.
 - `db_name`: The name of the database.
 - `coll_names`: The name of the collection for add in existing database.
 - `num_collections`: as per usecase give num of collections
