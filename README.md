@@ -88,14 +88,13 @@ import requests
 import json
 
 url = "https://datacube.uxlivinglab.online/db_api/get_data/"
-query = {"_id": "101001010101"}
 
 data = {
     "api-key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "fetch",
-    "filters": json.dumps(query),
+    "filters": {"_id": "101001010101"},
     "limit": 1,
     "offset": 0
 }
@@ -151,7 +150,13 @@ import json
 
 url = "https://datacube.uxlivinglab.online/db_api/crud/"
 
-data_to_insert = {
+
+data = {
+    "api_key": "your-dowell-api-key",
+    "db_name": "dowell",
+    "coll_name": "test5",
+    "operation": "insert",
+    "data": {
     "id": "101001010101",
     "info": {'name': "dowell"},
     "records": [{
@@ -159,13 +164,6 @@ data_to_insert = {
         "type": "overall"
     }]
 }
-
-data = {
-    "api-key": "your-dowell-api-key",
-    "db_name": "dowell",
-    "coll_name": "test",
-    "operation": "insert",
-    "data": json.dumps(data_to_insert)
 }
 
 response = requests.post(url, json=data)
@@ -221,7 +219,12 @@ Use this API to update data in a specific collection within the Dowell database.
 import requests
 import json
 
-data_to_update = {
+data = {
+    "api-key": "your-dowell-api-key",
+    "db_name": "dowell",
+    "coll_name": "test",
+    "operation": "update",
+    "update_data": {
     "id": "101001010101",
     "info": {'name': "dowell"},
     "records": [{
@@ -229,13 +232,6 @@ data_to_update = {
         "type": "overall_updated"
     }]
 }
-
-data = {
-    "api-key": "your-dowell-api-key",
-    "db_name": "dowell",
-    "coll_name": "test",
-    "operation": "update",
-    "update_data": json.dumps(data_to_update)
 }
 ```
 
@@ -279,16 +275,14 @@ Use this API to remove data from a specific collection within the Dowell databas
 import requests
 import json
 
-data_to_delete = {
-    "id": "101001010101"
-}
-
 data = {
     "api-key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "delete",
-    "query": json.dumps(data_to_delete)
+    "query": {
+    "id": "101001010101"
+}
 }
 ```
 
