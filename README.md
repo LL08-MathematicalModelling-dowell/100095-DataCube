@@ -194,6 +194,7 @@ Use this API to update data in a specific collection within the Dowell database.
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "update",
+    "query": {"_id": "64f6fac8ac03855a010559f2"},
     "update_data": {
         "id": "101001010101",
         "info": {"name": "dowell"},
@@ -211,7 +212,8 @@ Use this API to update data in a specific collection within the Dowell database.
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection to update data in.
 - `operation`: The operation type, which is "update" for this request.
-- `update_data`: The data to be updated, provided as a JSON object.
+- `query`: Query or filter the record you want to update.
+- `update_data`: The data to be updated, is provided as a JSON object.
 
 #### Example of Updating Data in Python
 
@@ -219,11 +221,15 @@ Use this API to update data in a specific collection within the Dowell database.
 import requests
 import json
 
+query = {
+        "_id": "64f6fac8ac03855a010559f2",
+    }
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "update",
+    "query": josn.dumps(query)
     "update_data": {
     "id": "101001010101",
     "info": {'name': "dowell"},
@@ -267,23 +273,25 @@ Use this API to remove data from a specific collection within the Dowell databas
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection from which data will be deleted.
 - `operation`: The operation type, which is "delete" for this request.
-- `query`: The query filter related to the operation.
+- `query`: Query or filter the record you want to delete.
 
 #### Example of Deleting Data in Python
 
 ```python
 import requests
 import json
-
+query = {
+        "_id": "64f6fac8ac03855a010559f2",
+    }
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "delete",
-    "query": {
-    "id": "101001010101"
+    "query": josn.dumps(query)
+
 }
-}
+
 ```
 
 #### Response:
