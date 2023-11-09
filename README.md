@@ -150,7 +150,6 @@ import json
 
 url = "https://datacube.uxlivinglab.online/db_api/crud/"
 
-
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
@@ -280,6 +279,8 @@ Use this API to remove data from a specific collection within the Dowell databas
 ```python
 import requests
 import json
+url = "https://datacube.uxlivinglab.online/db_api/crud/"
+
 query = {
         "_id": "64f6fac8ac03855a010559f2",
     }
@@ -291,6 +292,8 @@ data = {
     "query": josn.dumps(query)
 
 }
+response = requests.delete(url, json=data)
+print(response.text)
 
 ```
 
