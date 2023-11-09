@@ -220,15 +220,14 @@ Use this API to update data in a specific collection within the Dowell database.
 import requests
 import json
 
-query = {
-        "_id": "64f6fac8ac03855a010559f2",
-    }
+url = "https://datacube.uxlivinglab.online/db_api/crud/"
+
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "update",
-    "query": josn.dumps(query)
+    "query" : {"_id": "64f6fac8ac03855a010559f2"}
     "update_data": {
     "id": "101001010101",
     "info": {'name': "dowell"},
@@ -238,6 +237,10 @@ data = {
     }]
 }
 }
+
+response = requests.put(url, json=data)
+print(response.text)
+
 ```
 
 #### Response:
@@ -281,15 +284,14 @@ import requests
 import json
 url = "https://datacube.uxlivinglab.online/db_api/crud/"
 
-query = {
-        "_id": "64f6fac8ac03855a010559f2",
-    }
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "delete",
-    "query": josn.dumps(query)
+    "query": {
+        "_id": "64f6fac8ac03855a010559f2",
+    }
 
 }
 response = requests.delete(url, json=data)
