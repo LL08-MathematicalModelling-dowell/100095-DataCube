@@ -46,7 +46,7 @@ class InputDeleteSerializer(serializers.Serializer):
     db_name = serializers.CharField(max_length=100)
     coll_name = serializers.CharField(max_length=100)
     operation = serializers.CharField(max_length=10)
-    query = serializers.DictField(required=False)
+    query = serializers.JSONField(required=False)
 
 
 class AddCollectionPOSTSerializer(serializers.Serializer):
