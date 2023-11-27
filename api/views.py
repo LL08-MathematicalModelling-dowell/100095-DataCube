@@ -12,6 +12,7 @@ from .helpers import check_api_key
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import re
+import time
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -27,7 +28,7 @@ class DataCrudView(APIView):
             operation = data.get('operation')
             api_key = data.get('api_key')
             filters = serializer.validated_data.get('filters', {})
-            limit = int(data.get('limit')) if 'limit' in data else None
+            limit = int(data.get('limit')) if 'limit' in data else 20
             offset = int(data.get('offset')) if 'offset' in data else None
             for key, value in filters.items():
                 if key in ["id", "_id"]:
@@ -63,7 +64,13 @@ class DataCrudView(APIView):
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            start_time = time.time()
+            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
+            end_time = time.time()
+            print(f"time after calling payment API : {end_time}")
+            execution_time = end_time - start_time
+            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -134,7 +141,13 @@ class DataCrudView(APIView):
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+            start_time = time.time()
+            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
+            end_time = time.time()
+            print(f"time after calling payment API : {end_time}")
+            execution_time = end_time - start_time
+            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -210,7 +223,13 @@ class DataCrudView(APIView):
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+            start_time = time.time()
+            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
+            end_time = time.time()
+            print(f"time after calling payment API : {end_time}")
+            execution_time = end_time - start_time
+            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -272,7 +291,13 @@ class DataCrudView(APIView):
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+            start_time = time.time()
+            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
+            end_time = time.time()
+            print(f"time after calling payment API : {end_time}")
+            execution_time = end_time - start_time
+            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -335,7 +360,13 @@ class GetDataView(APIView):
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            start_time = time.time()
+            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
+            end_time = time.time()
+            print(f"time after calling payment API : {end_time}")
+            execution_time = end_time - start_time
+            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -411,7 +442,13 @@ class GetDataView(APIView):
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            start_time = time.time()
+            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
+            end_time = time.time()
+            print(f"time after calling payment API : {end_time}")
+            execution_time = end_time - start_time
+            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -467,7 +504,13 @@ class CollectionView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
+            start_time = time.time()
+            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
+            end_time = time.time()
+            print(f"time after calling payment API : {end_time}")
+            execution_time = end_time - start_time
+            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
