@@ -28,7 +28,7 @@ class DataCrudView(APIView):
             operation = data.get('operation')
             api_key = data.get('api_key')
             filters = serializer.validated_data.get('filters', {})
-            limit = int(data.get('limit')) if 'limit' in data else 20
+            limit = int(data.get('limit')) if 'limit' in data else None
             offset = int(data.get('offset')) if 'offset' in data else None
             for key, value in filters.items():
                 if key in ["id", "_id"]:
