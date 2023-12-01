@@ -307,7 +307,7 @@ class DataCrudView(APIView):
             result = new_collection.delete_many(query)
             return Response(
                 {"success": True, "message": f"{result.deleted_count} documents deleted successfully!", "data": []},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
