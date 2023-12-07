@@ -16,6 +16,7 @@ class InputGetSerializer(serializers.Serializer):
     api_key = serializers.CharField(max_length=510, required=True)
     limit = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=False)
+    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
 
 
 class InputPostSerializer(serializers.Serializer):

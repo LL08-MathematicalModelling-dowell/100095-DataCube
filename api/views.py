@@ -30,6 +30,7 @@ class DataCrudView(APIView):
             filters = serializer.validated_data.get('filters', {})
             limit = int(data.get('limit')) if 'limit' in data else None
             offset = int(data.get('offset')) if 'offset' in data else None
+            payment = data.get('payment', True)
             for key, value in filters.items():
                 if key in ["id", "_id"]:
                     try:
@@ -64,18 +65,19 @@ class DataCrudView(APIView):
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
-            start_time = time.time()
-            print(f"time before calling payment API : {start_time}")
-            res = check_api_key(api_key)
-            end_time = time.time()
-            print(f"time after calling payment API : {end_time}")
-            execution_time = end_time - start_time
-            print(f"Total time taken by payment API : {execution_time}")
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res,
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+            if payment:
+                start_time = time.time()
+                print(f"time before calling payment API : {start_time}")
+                res = check_api_key(api_key)
+                end_time = time.time()
+                print(f"time after calling payment API : {end_time}")
+                execution_time = end_time - start_time
+                print(f"Total time taken by payment API : {execution_time}")
+                if res != "success":
+                    return Response(
+                        {"success": False, "message": res,
+                         "data": []},
+                        status=status.HTTP_404_NOT_FOUND)
 
             result = None
             if operation == "fetch":
@@ -325,6 +327,8 @@ class GetDataView(APIView):
             filters = json.loads(filters_json) if filters_json else {}
             limit = int(request.GET.get('limit')) if 'limit' in request.GET else None
             offset = int(request.GET.get('offset')) if 'offset' in request.GET else None
+            payment = request.GET('payment', True)
+            print("payment", payment)
 
             for key, value in filters.items():
                 if key in ["id", "_id"]:
@@ -408,6 +412,8 @@ class GetDataView(APIView):
             filters = serializer.validated_data.get('filters', {})
             limit = int(data.get('limit')) if 'limit' in data else None
             offset = int(data.get('offset')) if 'offset' in data else None
+            payment = data.get('payment', True)
+            print('payment', payment)
             for key, value in filters.items():
                 if key in ["id", "_id"]:
                     try:
@@ -442,18 +448,19 @@ class GetDataView(APIView):
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
-            start_time = time.time()
-            print(f"time before calling payment API : {start_time}")
-            res = check_api_key(api_key)
-            end_time = time.time()
-            print(f"time after calling payment API : {end_time}")
-            execution_time = end_time - start_time
-            print(f"Total time taken by payment API : {execution_time}")
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res,
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+            if payment:
+                start_time = time.time()
+                print(f"time before calling payment API : {start_time}")
+                res = check_api_key(api_key)
+                end_time = time.time()
+                print(f"time after calling payment API : {end_time}")
+                execution_time = end_time - start_time
+                print(f"Total time taken by payment API : {execution_time}")
+                if res != "success":
+                    return Response(
+                        {"success": False, "message": res,
+                         "data": []},
+                        status=status.HTTP_404_NOT_FOUND)
 
             result = None
             if operation == "fetch":
