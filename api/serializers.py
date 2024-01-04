@@ -55,3 +55,10 @@ class AddCollectionPOSTSerializer(serializers.Serializer):
     db_name = serializers.CharField(max_length=100)
     num_collections = serializers.CharField(max_length=100)
     coll_names = serializers.CharField(max_length=10000)
+
+
+
+class GetCollectionsSerializer(serializers.Serializer):
+    api_key = serializers.CharField(max_length=510)
+    db_name = serializers.CharField(max_length=100)
+    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
