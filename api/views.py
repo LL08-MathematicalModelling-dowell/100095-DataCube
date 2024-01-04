@@ -617,6 +617,6 @@ class CollectionView(APIView):
                 {"success": True, "message": f"Collections found!",
                  "data": collections_list},
                 status=status.HTTP_200_OK)
-        except Exception:
+        except Exception as e:
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
