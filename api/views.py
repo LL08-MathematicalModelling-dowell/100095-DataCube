@@ -487,6 +487,50 @@ class GetDataView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CollectionView(APIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            serializer = GetCollectionsSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            data = serializer.validated_data
+            database = data.get('db_name')
+            api_key = data.get('api_key')
+            payment = data.get('payment', True)
+
+            if payment:
+                res = check_api_key(api_key)
+                if res != "success":
+                    return Response(
+                        {"success": False, "message": res,
+                         "data": []},
+                        status=status.HTTP_404_NOT_FOUND)
+            config = json.loads(
+                Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            cluster = pymongo.MongoClient(host=config['mongo_path'])
+
+            db = cluster['metadata']
+            coll = db['metadata_collection']
+            mongoDb = coll.find_one({"database_name": database})
+
+            if not mongoDb:
+                return Response(
+                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
+                     "data": []},
+                    status=status.HTTP_404_NOT_FOUND)
+
+            db_coll = cluster[database]
+            collections_list = db_coll.list_collection_names()
+            return Response(
+                {"success": True, "message": f"Collections found!",
+                 "data": collections_list},
+                status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"success": False, "message": e.args[0], "data": []},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddCollection(APIView):
     def post(self, request, *args, **kwargs):
         try:
             serializer = AddCollectionPOSTSerializer(data=request.data)
@@ -575,47 +619,6 @@ class CollectionView(APIView):
             return Response(
                 {"success": True, "message": f"Collection added successfully!",
                  "data": []},
-                status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-    def get(self, request, *args, **kwargs):
-        try:
-            serializer = GetCollectionsSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-
-            data = serializer.validated_data
-            database = data.get('db_name')
-            api_key = data.get('api_key')
-            payment = data.get('payment', True)
-
-            if payment:
-                res = check_api_key(api_key)
-                if res != "success":
-                    return Response(
-                        {"success": False, "message": res,
-                         "data": []},
-                        status=status.HTTP_404_NOT_FOUND)
-            config = json.loads(
-                Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
-
-            db = cluster['metadata']
-            coll = db['metadata_collection']
-            mongoDb = coll.find_one({"database_name": database})
-
-            if not mongoDb:
-                return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
-
-            db_coll = cluster[database]
-            collections_list = db_coll.list_collection_names()
-            return Response(
-                {"success": True, "message": f"Collections found!",
-                 "data": collections_list},
                 status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"success": False, "message": e.args[0], "data": []},
