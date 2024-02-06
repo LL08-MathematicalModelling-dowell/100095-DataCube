@@ -41,7 +41,7 @@ class DataCrudView(APIView):
 
             config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = pymongo.MongoClient(host=config['mongo_path'])
-            db = cluster['metadata']
+            db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
             mongoDb = collection.find_one({"database_name": database})
@@ -59,20 +59,15 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            new_db = cluster[database]
+            new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
             if payment:
-                start_time = time.time()
-                print(f"time before calling payment API : {start_time}")
                 res = check_api_key(api_key)
-                end_time = time.time()
-                print(f"time after calling payment API : {end_time}")
-                execution_time = end_time - start_time
-                print(f"Total time taken by payment API : {execution_time}")
+
                 if res != "success":
                     return Response(
                         {"success": False, "message": res,
@@ -118,7 +113,7 @@ class DataCrudView(APIView):
 
             config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = pymongo.MongoClient(host=config['mongo_path'])
-            db = cluster['metadata']
+            db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
             mongoDb = collection.find_one({"database_name": database})
@@ -136,20 +131,14 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            new_db = cluster[database]
+            new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
             if operation not in ["insert"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-            start_time = time.time()
-            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
-            end_time = time.time()
-            print(f"time after calling payment API : {end_time}")
-            execution_time = end_time - start_time
-            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -200,7 +189,7 @@ class DataCrudView(APIView):
 
             config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = pymongo.MongoClient(host=config['mongo_path'])
-            db = cluster['metadata']
+            db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
             mongoDb = collection.find_one({"database_name": database})
@@ -218,20 +207,14 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            new_db = cluster[database]
+            new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
             if operation not in ["update"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-            start_time = time.time()
-            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
-            end_time = time.time()
-            print(f"time after calling payment API : {end_time}")
-            execution_time = end_time - start_time
-            print(f"Total time taken by payment API : {execution_time}")
+
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -268,7 +251,7 @@ class DataCrudView(APIView):
                         pass
             config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = pymongo.MongoClient(host=config['mongo_path'])
-            db = cluster['metadata']
+            db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
             mongoDb = collection.find_one({"database_name": database})
@@ -286,20 +269,14 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            new_db = cluster[database]
+            new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
             if operation not in ["delete"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-            start_time = time.time()
-            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
-            end_time = time.time()
-            print(f"time after calling payment API : {end_time}")
-            execution_time = end_time - start_time
-            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
@@ -328,7 +305,6 @@ class GetDataView(APIView):
             limit = int(request.GET.get('limit')) if 'limit' in request.GET else None
             offset = int(request.GET.get('offset')) if 'offset' in request.GET else None
             payment = request.GET('payment', True)
-            print("payment", payment)
 
             for key, value in filters.items():
                 if key in ["id", "_id"]:
@@ -340,7 +316,7 @@ class GetDataView(APIView):
 
             config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = pymongo.MongoClient(host=config['mongo_path'])
-            db = cluster['metadata']
+            db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
             mongoDb = collection.find_one({"database_name": database})
@@ -358,24 +334,20 @@ class GetDataView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            new_db = cluster[database]
+            new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
-            start_time = time.time()
-            print(f"time before calling payment API : {start_time}")
-            res = check_api_key(api_key)
-            end_time = time.time()
-            print(f"time after calling payment API : {end_time}")
-            execution_time = end_time - start_time
-            print(f"Total time taken by payment API : {execution_time}")
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res,
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+            if payment:
+                res = check_api_key(api_key)
+
+                if res != "success":
+                    return Response(
+                        {"success": False, "message": res,
+                         "data": []},
+                        status=status.HTTP_404_NOT_FOUND)
 
             result = None
             if operation == "fetch":
@@ -413,7 +385,6 @@ class GetDataView(APIView):
             limit = int(data.get('limit')) if 'limit' in data else None
             offset = int(data.get('offset')) if 'offset' in data else None
             payment = data.get('payment', True)
-            print('payment', payment)
             for key, value in filters.items():
                 if key in ["id", "_id"]:
                     try:
@@ -424,7 +395,7 @@ class GetDataView(APIView):
 
             config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = pymongo.MongoClient(host=config['mongo_path'])
-            db = cluster['metadata']
+            db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
             mongoDb = collection.find_one({"database_name": database})
@@ -442,20 +413,14 @@ class GetDataView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            new_db = cluster[database]
+            new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
             if payment:
-                start_time = time.time()
-                print(f"time before calling payment API : {start_time}")
                 res = check_api_key(api_key)
-                end_time = time.time()
-                print(f"time after calling payment API : {end_time}")
-                execution_time = end_time - start_time
-                print(f"Total time taken by payment API : {execution_time}")
                 if res != "success":
                     return Response(
                         {"success": False, "message": res,
@@ -508,7 +473,7 @@ class CollectionView(APIView):
                 Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = pymongo.MongoClient(host=config['mongo_path'])
 
-            db = cluster['metadata']
+            db = cluster['datacube_metadata']
             coll = db['metadata_collection']
             mongoDb = coll.find_one({"database_name": database})
 
@@ -518,7 +483,7 @@ class CollectionView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            db_coll = cluster[database]
+            db_coll = cluster["datacube_" + database]
             collections_list = db_coll.list_collection_names()
             return Response(
                 {"success": True, "message": f"Collections found!",
@@ -544,7 +509,7 @@ class AddCollection(APIView):
             config = json.loads(
                 Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = pymongo.MongoClient(host=config['mongo_path'])
-            db = cluster['metadata']
+            db = cluster['datacube_metadata']
             coll = db['metadata_collection']
 
             mongoDb = coll.find_one({"database_name": database})
@@ -555,13 +520,7 @@ class AddCollection(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            start_time = time.time()
-            print(f"time before calling payment API : {start_time}")
             res = check_api_key(api_key)
-            end_time = time.time()
-            print(f"time after calling payment API : {end_time}")
-            execution_time = end_time - start_time
-            print(f"Total time taken by payment API : {execution_time}")
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
