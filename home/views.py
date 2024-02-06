@@ -69,7 +69,7 @@ def data_view(request):
                 # databases = mongodb.get_all_databases()
                 config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                 cluster = pymongo.MongoClient(host=config['mongo_path'])
-                db = cluster['metadata']
+                db = cluster["datacube_metadata" ]
                 coll = db['metadata_collection']
                 databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
                 databases = [x.get('database_name') for x in databases]
@@ -108,7 +108,7 @@ def metadata_view(request):
                 if request.method == 'POST':
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     cluster = pymongo.MongoClient(host=config['mongo_path'])
-                    db = cluster['metadata']
+                    db = cluster["datacube_metadata" ]
                     coll = db['metadata_collection']
 
                     final_data = {
@@ -125,7 +125,7 @@ def metadata_view(request):
                     if database:
                         context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False, 'error_message': 'Database with the same name already exists!'}
                         html_template = loader.get_template('home/metadata.html')
-                        return HttpResponse(html_template.render(context, request)) 
+                        return HttpResponse(html_template.render(context, request))
                     else:
                         coll.insert_one(final_data)
 
@@ -303,7 +303,7 @@ def settings_view(request):
                 if request.method == 'POST':
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     cluster = pymongo.MongoClient(host=config['mongo_path'])
-                    db = cluster['metadata']
+                    db = cluster["datacube_metadata" ]
                     coll = db['metadata_collection']
 
                     database_name = request.POST.get('databaseName')
@@ -353,7 +353,7 @@ def settings_view(request):
                     mongodb = MongoDatabases()
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     cluster = pymongo.MongoClient(host=config['mongo_path'])
-                    db = cluster['metadata']
+                    db = cluster["datacube_metadata" ]
                     coll = db['metadata_collection']
                     databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
                     databases = [x.get('database_name') for x in databases]
@@ -390,7 +390,7 @@ def settings_view(request):
 #             if user.get("userinfo", {}).get("username"):
 #                 config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
 #                 cluster = pymongo.MongoClient(host=config['mongo_path'])
-#                 db = cluster['metadata']
+#                 db = cluster["datacube_metadata" ]
 #                 coll = db['metadata_collection']
 
 #                 # Query MongoDB for metadata records associated with the user ID
