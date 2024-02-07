@@ -153,7 +153,7 @@ def retrieve_metadata(request):
             if user.get("userinfo", {}).get("username"):
                 config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                 client = pymongo.MongoClient(host=config['mongo_path'])
-                db = client['metadata']
+                db = client['datacube_metadata']
                 coll = db['metadata_collection']
 
                 # Query MongoDB for metadata records associated with the user ID
