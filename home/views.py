@@ -69,7 +69,7 @@ def data_view(request):
                 # databases = mongodb.get_all_databases()
                 config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                 cluster = pymongo.MongoClient(host=config['mongo_path'])
-                db = cluster["datacube_metadata" ]
+                db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
                 databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
                 databases = [x.get('database_name') for x in databases]
@@ -108,7 +108,7 @@ def metadata_view(request):
                 if request.method == 'POST':
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     cluster = pymongo.MongoClient(host=config['mongo_path'])
-                    db = cluster["datacube_metadata" ]
+                    db = cluster["datacube_metadata"]
                     coll = db['metadata_collection']
 
                     final_data = {
@@ -123,7 +123,8 @@ def metadata_view(request):
                     }
                     database = coll.find_one({"database_name": str(request.POST.get('databaseName'))})
                     if database:
-                        context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False, 'error_message': 'Database with the same name already exists!'}
+                        context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False,
+                                   'error_message': 'Database with the same name already exists!'}
                         html_template = loader.get_template('home/metadata.html')
                         return HttpResponse(html_template.render(context, request))
                     else:
@@ -165,11 +166,11 @@ def retrieve_metadata(request):
 
                     records.append({
 
-                        'collection_names': ', '.join(record['collection_names']),
-                        'database_name': record['database_name'],
-                        'number_of_collections': record['number_of_collections'],  # Add this line
-                        'number_of_documents': record['number_of_documents'],  # Add this line
-                        'number_of_fields': record['number_of_fields'],
+                        'collection_names': ', '.join(record.get('collection_names', [])),
+                        'database_name': record.get('database_name', ''),
+                        'number_of_collections': record.get('number_of_collections', 0),  # Add this line
+                        'number_of_documents': record.get('number_of_documents', 0),  # Add this line
+                        'number_of_fields': record.get('number_of_fields', 0),
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
@@ -182,7 +183,7 @@ def retrieve_metadata(request):
                 return redirect(f"{settings.MY_BASE_URL}/logout/")
         else:
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
-    except:
+    except Exception as e:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
 
@@ -303,7 +304,7 @@ def settings_view(request):
                 if request.method == 'POST':
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     cluster = pymongo.MongoClient(host=config['mongo_path'])
-                    db = cluster["datacube_metadata" ]
+                    db = cluster["datacube_metadata"]
                     coll = db['metadata_collection']
 
                     database_name = request.POST.get('databaseName')
@@ -353,7 +354,7 @@ def settings_view(request):
                     mongodb = MongoDatabases()
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     cluster = pymongo.MongoClient(host=config['mongo_path'])
-                    db = cluster["datacube_metadata" ]
+                    db = cluster["datacube_metadata"]
                     coll = db['metadata_collection']
                     databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
                     databases = [x.get('database_name') for x in databases]
@@ -367,7 +368,8 @@ def settings_view(request):
                         except Exception:
                             continue
 
-                context = {'page': 'DB Import File', 'segment': 'settings', 'is_admin': False, 'collections': collections,
+                context = {'page': 'DB Import File', 'segment': 'settings', 'is_admin': False,
+                           'collections': collections,
                            'databases': databases}
                 html_template = loader.get_template('home/settings.html')
                 return HttpResponse(html_template.render(context, request))
@@ -377,7 +379,6 @@ def settings_view(request):
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except Exception as e:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
-
 
 # @login_required(login_url='/login/')
 # def retrieve_metadata(request):
