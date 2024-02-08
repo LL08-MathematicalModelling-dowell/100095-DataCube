@@ -292,6 +292,94 @@ def add_collections(request, dbname):
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
 
+# @csrf_exempt
+# def settings_view(request):
+#     try:
+#         if request.session.get("session_id"):
+#             url = "https://100014.pythonanywhere.com/api/userinfo/"
+#             resp = requests.post(url, data={"session_id": request.session["session_id"]})
+#             user = json.loads(resp.text)
+#             if user.get("userinfo", {}).get("username"):
+#                 if request.method == 'POST':
+#                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+#                     cluster = pymongo.MongoClient(host=config['mongo_path'])
+#                     db = cluster["datacube_metadata" ]
+#                     coll = db['metadata_collection']
+
+#                     database_name = request.POST.get('databaseName')
+#                     collection_name = request.POST.get('colName')
+#                     field_labels = []
+#                     file = request.FILES.get('fileToImport')
+#                     collection_names = [collection_name]
+
+#                     final_data = {
+#                         "database_name": database_name,
+#                         "collection_name": collection_name,
+#                         "collection_names": collection_names,
+#                         "number_of_collections": len(collection_names),
+#                         "number_of_documents": 1,
+#                         "field_labels": field_labels,
+#                         "number_of_fields": len(field_labels),
+#                         "added_by": user.get("userinfo", {}).get("username"),
+#                         "session_id": request.session.get("session_id"),
+#                     }
+
+#                     database = coll.find_one({"database_name": database_name})
+#                     if database:
+#                         coll.update_one(
+#                             {"database_name": str(request.POST.get('databaseName'))},
+#                             {"$set": final_data}
+#                         )
+#                     else:
+#                         coll.insert_one(final_data)
+
+#                     # Now create the database and collection in mongodb and insert data
+#                     db = cluster[str(database_name)]
+#                     coll = db[str(collection_name)]
+
+#                     if file:
+#                         if file.name.endswith('.json'):
+#                             json_data = json.loads(file.read())
+#                             for item in json_data:
+#                                 coll.insert_one(item)
+
+#                         elif file.name.endswith('.csv'):
+#                             csv_reader = csv.DictReader(file.read().decode('utf-8').splitlines())
+#                             for row in csv_reader:
+#                                 coll.insert_one(row)
+#                     else:
+#                         coll.insert_one({"test": "test"})
+#                 else:
+#                     mongodb = MongoDatabases()
+#                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+#                     cluster = pymongo.MongoClient(host=config['mongo_path'])
+#                     db = cluster["datacube_metadata" ]
+#                     coll = db['metadata_collection']
+#                     databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+#                     databases = [x.get('database_name') for x in databases]
+
+#                     collections = []
+#                     for d in databases:
+#                         try:
+
+#                             colls = mongodb.get_all_database_collections(d)
+#                             collections.extend(colls)
+#                         except Exception:
+#                             continue
+
+#                 context = {'page': 'DB Import File', 'segment': 'settings', 'is_admin': False, 'collections': collections,
+#                            'databases': databases}
+#                 html_template = loader.get_template('home/settings.html')
+#                 return HttpResponse(html_template.render(context, request))
+#             else:
+#                 return redirect(f"{settings.MY_BASE_URL}/logout/")
+#         else:
+#             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+#     except Exception as e:
+#         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    
+
+
 @csrf_exempt
 def settings_view(request):
     try:
@@ -351,22 +439,38 @@ def settings_view(request):
                         coll.insert_one({"test": "test"})
                 else:
                     mongodb = MongoDatabases()
+                    
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     cluster = pymongo.MongoClient(host=config['mongo_path'])
                     db = cluster["datacube_metadata" ]
                     coll = db['metadata_collection']
-                    databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+                
+                    databases = coll.find({"added_by": user.get("userinfo", {}).get("username")})
                     databases = [x.get('database_name') for x in databases]
+        
 
-                    collections = []
-                    for d in databases:
-                        try:
+                    # collections = []
+                    # for d in databases:
+                    #     try:                            
+                    #         print("jdasdjlk555")
+                    #         colls = mongodb.get_all_database_collections(d)
+                    #         collections.extend(colls)
+                    #     except Exception:
+                    #         continue
+                    if {"added_by": user.get("userinfo", {}).get("username")} and {"database_name": 1}:
+                        mongodb = MongoDatabases()
+                        databases = mongodb.get_all_databases()
 
-                            colls = mongodb.get_all_database_collections(d)
-                            collections.extend(colls)
-                        except Exception:
-                            continue
+                        collections = []
+                        for db in databases:
+                            try:
+                                colls = mongodb.get_all_database_collections(db)
+                                collections.extend(colls)
+                            except Exception:
+                                continue
 
+
+                print("list collections",list(collections), list(databases))
                 context = {'page': 'DB Import File', 'segment': 'settings', 'is_admin': False, 'collections': collections,
                            'databases': databases}
                 html_template = loader.get_template('home/settings.html')
@@ -421,3 +525,6 @@ def settings_view(request):
 #             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 #     except:
 #         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+
+
+
