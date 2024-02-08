@@ -153,7 +153,7 @@ def retrieve_metadata(request):
             if user.get("userinfo", {}).get("username"):
                 config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                 client = pymongo.MongoClient(host=config['mongo_path'])
-                db = client['metadata']
+                db = client['datacube_metadata']
                 coll = db['metadata_collection']
 
                 # Query MongoDB for metadata records associated with the user ID
@@ -195,7 +195,7 @@ def retrieve_collections(request, dbname):
             if user.get("userinfo", {}).get("username"):
                 config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                 client = pymongo.MongoClient(host=config['mongo_path'])
-                db = client['metadata']
+                db = client['datacube_metadata']
                 coll = db['metadata_collection']
                 user_id = request.user.id  # Get the ID of the currently logged-in user
 
@@ -244,7 +244,7 @@ def add_collections(request, dbname):
                 if request.method == 'POST':
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     client = pymongo.MongoClient(host=config['mongo_path'])
-                    db = client['metadata']  # Use the provided 'dbname' as the database name
+                    db = client['datacube_metadata']  # Use the provided 'dbname' as the database name
                     coll = db['metadata_collection']
 
                     final_data = {
