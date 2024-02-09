@@ -9,6 +9,7 @@ from django.template import loader
 import requests
 from django.conf import settings
 from dbdetails.script import MongoDatabases
+from django.http import JsonResponse
 
 
 def login_view(request):
@@ -293,25 +294,29 @@ def add_collections(request, dbname):
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
 
+collections_data = {}
 @csrf_exempt
 def settings_view(request):
     try:
-        if request.session.get("session_id"):
+        if request.session.get("session_id"):            
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("username"):
-                if request.method == 'POST':
+
+                if request.method == 'POST':                    
                     config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
                     cluster = pymongo.MongoClient(host=config['mongo_path'])
                     db = cluster["datacube_metadata"]
                     coll = db['metadata_collection']
-
-                    database_name = request.POST.get('databaseName')
+                    
+                    database_name = request.POST.get('databaseName')                    
                     collection_name = request.POST.get('colName')
+                    
                     field_labels = []
                     file = request.FILES.get('fileToImport')
-                    collection_names = [collection_name]
+                    
+                    collection_names = [collection_name]                    
 
                     final_data = {
                         "database_name": database_name,
@@ -343,34 +348,31 @@ def settings_view(request):
                             json_data = json.loads(file.read())
                             for item in json_data:
                                 coll.insert_one(item)
+                        elif file.name.endswith('.csv'):  
 
-                        elif file.name.endswith('.csv'):
                             csv_reader = csv.DictReader(file.read().decode('utf-8').splitlines())
                             for row in csv_reader:
                                 coll.insert_one(row)
                     else:
                         coll.insert_one({"test": "test"})
-                else:
-                    mongodb = MongoDatabases()
-                    config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-                    cluster = pymongo.MongoClient(host=config['mongo_path'])
-                    db = cluster["datacube_metadata"]
-                    coll = db['metadata_collection']
-                    databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
-                    databases = [x.get('database_name') for x in databases]
+                
+                config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+                cluster = pymongo.MongoClient(host=config['mongo_path'])
+                db = cluster["datacube_metadata"]
+                coll = db['metadata_collection']
+                databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+                databases = [x.get('database_name') for x in databases]
 
-                    collections = []
-                    for d in databases:
-                        try:
+                collections = get_collections_for_user(user.get("userinfo", {}).get("username"), coll, databases)
 
-                            colls = mongodb.get_all_database_collections(d)
-                            collections.extend(colls)
-                        except Exception:
-                            continue
+                context = {
+                    'page': 'DB Import File',
+                    'segment': 'settings',
+                    'is_admin': False,
+                    'collections': collections,
+                    'databases': databases
+                }
 
-                context = {'page': 'DB Import File', 'segment': 'settings', 'is_admin': False,
-                           'collections': collections,
-                           'databases': databases}
                 html_template = loader.get_template('home/settings.html')
                 return HttpResponse(html_template.render(context, request))
             else:
@@ -379,6 +381,25 @@ def settings_view(request):
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except Exception as e:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+
+def get_collections_for_user(username, coll, databases):
+    collections = []
+    for database in databases:
+        try:
+            if database in collections_data:
+                collections.extend(collections_data[database])
+            else:
+                colls = coll.find({"database_name": database})
+                for document in colls:
+                    if 'collection_names' in document:
+                        collection_names = document['collection_names']
+                        collections.extend(collection_names)
+                        collections_data[database] = collection_names
+        except Exception as e:
+            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+
+    return collections
+
 
 # @login_required(login_url='/login/')
 # def retrieve_metadata(request):

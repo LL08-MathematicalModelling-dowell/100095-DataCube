@@ -106,8 +106,10 @@
 <script>
     $(document).ready(function () {
         $('#select-databases').on('change', function () {
+            $('#fileToImport').focus();
             let db = $(this).val();
             getCollectionsDataView('{{ csrf_token }}', db);
+            
         })
     });
 </script>

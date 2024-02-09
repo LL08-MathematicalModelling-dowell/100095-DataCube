@@ -13,6 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+import requests
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST)
@@ -286,12 +287,29 @@ def get_collections(request):
 class GetCollections(APIView):
     def post(self, request, *args, **kwargs):
         databases = request.data.get('databases', [])
+        url = "https://100014.pythonanywhere.com/api/userinfo/"
+        resp = requests.post(url, data={"session_id": request.session["session_id"]})
+        user = json.loads(resp.text)
         mongodb = MongoDatabases()
+        config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+        cluster = pymongo.MongoClient(host=config['mongo_path'])
+        db = cluster["datacube_metadata"]
+        coll = db['metadata_collection']
+        databases_from_db = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+        databasesDB = [x.get('database_name') for x in databases_from_db]
+
         collections = []
         data = {}
-        for db in databases:
-            collections.extend(mongodb.get_all_database_collections(db))
-            data.update({db: mongodb.get_all_database_collections(db)})
+        for db in databasesDB:
+            if db in databases:
+                colls = coll.find({"database_name": db})
+                if colls:
+                    # Extract collection names from the cursor
+                    collection_names = [doc["collection_names"] for doc in colls]
+                    for collection_name_list in collection_names:
+                        for collection_name_list_item in collection_name_list:
+                            collections.append(collection_name_list_item)
+                data.update({db: collections})
 
         return JsonResponse({'collections': collections, 'collections_data': data}, status=HTTP_200_OK)
 
