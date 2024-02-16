@@ -3,6 +3,8 @@ import os
 import datetime
 import sys
 
+from pymongo import MongoClient
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Quick-start development settings - unsuitable for production
@@ -89,6 +91,11 @@ DATABASES = {
         'PORT': '',  # Set to empty string for default. Not used with sqlite3.
     }
 }
+
+
+MONGODB_URI = "mongodb://localhost:27017"
+MONGODB_CLIENT = MongoClient(MONGODB_URI)
+MONGODB_DATABASE_NAME = "JK_DB"
 
 ALLOWED_HOSTS = ['*']
 CORS_ORIGIN_ALLOW_ALL = True
