@@ -18,7 +18,6 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
-from project.settings import MONGODB_CLIENT, MONGODB_DATABASE_NAME
 from .cronjob_script import CronJobs
 from .script import MongoDatabases
 from rest_framework.views import APIView
@@ -304,7 +303,8 @@ class GetCollections(APIView):
         if session_id:
             resp = requests.post(url, data={"session_id": session_id})
             user = json.loads(resp.text)
-            db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
+            client = settings.MONGODB_CLIENT
+            db = client[settings.MONGODB_DATABASE_NAME]
             coll = db['metadata_collection']
             databases_from_db = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
             databasesDB = [x.get('database_name') for x in databases_from_db]
@@ -449,45 +449,66 @@ class InitiateCron(APIView):
 class LoadMongoCollection(APIView):
     def post(self, request, *args, **kwargs):
         try:
+            database_name = request.data.get("db_name", "").strip()
             collection_name = request.data.get("collection", "").strip()
             page = int(request.data.get("page", 1))
             per_page = int(request.data.get("per_page", 5))
             sort = request.data.get("sort", "asc").strip()
             filter_data = request.data.get("filter", "").strip()
 
-            if filter_data:
+            try:
+                filter_query = json.loads(filter_data) if filter_data else {}
+            except json.JSONDecodeError as e:
+                return JsonResponse({"message": "Incorrect filter query format. Please provide a valid JSON."}, status=400)
+
+            if "_id" in filter_query:
                 try:
-                    filter = json.loads(filter_data)
-                except json.JSONDecodeError as e:
-                    return JsonResponse({"message": "Invalid JSON format in filter query: " + str(e)}, status=HTTP_400_BAD_REQUEST)
+                    filter_query["_id"] = ObjectId(filter_query["_id"])
+                except Exception as e:
+                    return JsonResponse({"message": "Invalid ObjectId in filter query: " + str(e)}, status=400)
 
-                if "_id" in filter:
-                    try:
-                        filter["_id"] = ObjectId(filter["_id"])
-                    except Exception as e:
-                        return JsonResponse({"message": "Invalid ObjectId in filter query: " + str(e)}, status=HTTP_400_BAD_REQUEST)
+            if "id" in filter_query:
+                try:
+                    filter_query["_id"] = ObjectId(filter_query["id"])
+                    del filter_query["id"]
+                except Exception as e:
+                    return JsonResponse({"message": "Invalid ObjectId in filter query: " + str(e)}, status=400)
 
-            else:
-                filter = {}
+            if not filter_query:
+                filter_query = {}
 
             offset = (page - 1) * per_page
 
-            db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
-            collection = db[collection_name]
+            client = settings.MONGODB_CLIENT
+            db = client[settings.MONGODB_DATABASE_NAME]
+            # coll = db['metadata_collection']
 
-            data = collection.find(filter).sort([("_id", pymongo.ASCENDING if sort == "asc" else pymongo.DESCENDING)]).skip(offset).limit(per_page)
-            total = collection.count_documents(filter)
+            mongodb = MongoDatabases()
+            databases = mongodb.get_all_databases()
 
-            list_data = list(data)
-            json_data = dumps(list_data)
-            context = {"json_data": json_data, "page": page, "per_page": per_page, "total": total}
+            for db_name in databases:
+                if db_name in ['config']:
+                    continue
+                if database_name!=db_name:
+                    continue
+                db = client[db_name]
+                if collection_name in mongodb.get_all_database_collections(db_name):
+                    collection = db[collection_name]
 
-            return JsonResponse(context, status=HTTP_200_OK, safe=False)
+                    try:
+                        data = collection.find(filter_query).sort([("_id", 1 if sort == "asc" else -1)]).skip(offset).limit(per_page)
+                    except Exception as e:
+                        return JsonResponse({"message": "Incorrect filter query. Please enter a correct query!"}, status=400)
+
+                    total = collection.count_documents(filter_query)
+                    list_cur = list(data)
+                    json_data = dumps(list_cur)
+                    context = {"json_data": json_data, "page": page, "per_page": per_page, "total": total}
+
+                    return JsonResponse(context, status=200, safe=False)
 
         except Exception as ex:
-            return JsonResponse({"message": "Something went wrong: " + str(ex)}, status=HTTP_400_BAD_REQUEST, safe=False)
-
-
+            return JsonResponse({"message": "Something went wrong: " + str(ex)}, status=400, safe=False)
 
 class ExportCluster(APIView):
     def get(self, request):

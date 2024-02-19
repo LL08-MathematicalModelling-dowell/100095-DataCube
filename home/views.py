@@ -11,8 +11,7 @@ from django.conf import settings
 from dbdetails.script import MongoDatabases
 from django.http import JsonResponse
 from pymongo import MongoClient
-
-from project.settings import MONGODB_CLIENT, MONGODB_DATABASE_NAME
+from django.shortcuts import redirect
 
 def login_view(request):
     try:
@@ -107,7 +106,6 @@ def signout(request):
 
 
 def data_view(request):
-    print("hsjfjshfjsfhjshhhf")
     try:
         session_id = request.session.get("session_id")
         if session_id:
@@ -115,7 +113,8 @@ def data_view(request):
             resp = requests.post(url, data={"session_id": session_id})
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("username"):
-                db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
+                client = settings.MONGODB_CLIENT
+                db = client[settings.MONGODB_DATABASE_NAME]
                 coll = db['metadata_collection']
 
                 # Query MongoDB for metadata records associated with the user ID
@@ -170,7 +169,8 @@ def metadata_view(request):
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("username"):
                 if request.method == 'POST':
-                    db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
+                    client = settings.MONGODB_CLIENT
+                    db = client[settings.MONGODB_DATABASE_NAME]
                     coll = db['metadata_collection']
 
                     final_data = {
@@ -215,9 +215,9 @@ def retrieve_metadata(request):
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("username"):
-                db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
+                client = settings.MONGODB_CLIENT
+                db = client[settings.MONGODB_DATABASE_NAME]
                 coll = db['metadata_collection']
-                # print(coll,"coll",db,"dbdbdbdbdb")
 
                 # Query MongoDB for metadata records associated with the user ID
                 metadata_records = coll.find({"added_by": user.get("userinfo", {}).get("username"), })
@@ -236,7 +236,6 @@ def retrieve_metadata(request):
                         'number_of_fields': record.get('number_of_fields', 0),
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
-                # print(records)
 
                 user = request.user
                 is_admin = False
@@ -258,7 +257,8 @@ def retrieve_collections(request, dbname):
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("username"):
-                db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
+                client = settings.MONGODB_CLIENT
+                db = client[settings.MONGODB_DATABASE_NAME]
                 coll = db['metadata_collection']
 
                 # Query MongoDB for metadata records associated with the user ID and the specified 'dbname'
@@ -303,7 +303,8 @@ def add_collections(request, dbname):
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("username"):
                 if request.method == 'POST':
-                    db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
+                    client = settings.MONGODB_CLIENT
+                    db = client[settings.MONGODB_DATABASE_NAME]
                     coll = db['metadata_collection']
 
                     final_data = {
@@ -345,7 +346,12 @@ def add_collections(request, dbname):
     except Exception as e:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
-collections_data = {}
+
+def get_collections_for_user(username, collection, databases):
+    collections = {}
+    for db_name in databases:
+        collections[db_name] = collection.find({"added_by": username, "database_name": db_name})
+    return collections
 
 @csrf_exempt
 def settings_view(request):
@@ -355,16 +361,20 @@ def settings_view(request):
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("username"):
-
                 if request.method == 'POST':
-                    db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
-                    coll = db['metadata_collection']
-                    print(coll)
-
                     database_name = request.POST.get('databaseName')
                     collection_name = request.POST.get('colName')
 
-                    field_labels = []
+
+                    client = settings.MONGODB_CLIENT
+                    db = client[database_name]
+                    coll = db[collection_name]
+
+
+                    # db = MONGODB_CLIENT[database_name]
+                    # coll = db[collection_name]
+
+
                     file = request.FILES.get('fileToImport')
 
                     collection_names = [collection_name]
@@ -375,23 +385,19 @@ def settings_view(request):
                         "collection_names": collection_names,
                         "number_of_collections": len(collection_names),
                         "number_of_documents": 1,
-                        "field_labels": field_labels,
-                        "number_of_fields": len(field_labels),
                         "added_by": user.get("userinfo", {}).get("username"),
                         "session_id": request.session.get("session_id"),
                     }
 
                     database = coll.find_one({"database_name": database_name})
                     if database:
-                        coll.update_one(
-                            {"database_name": str(request.POST.get('databaseName'))},
-                            {"$set": final_data}
-                        )
-                    else:
                         coll.insert_one(final_data)
-
-                    db = MONGODB_CLIENT[database_name]
-                    coll = db[collection_name]
+                        # coll.update_one(
+                        #     {"database_name": str(request.POST.get('databaseName'))},
+                        #     {"$set": final_data}
+                        # )
+                    # else:
+                    #     coll.insert_one(final_data)
 
                     if file:
                         if file.name.endswith('.json'):
@@ -405,14 +411,13 @@ def settings_view(request):
                     else:
                         coll.insert_one({"test": "test"})
 
-                db = MONGODB_CLIENT[MONGODB_DATABASE_NAME]
+                client = settings.MONGODB_CLIENT
+                db = client[settings.MONGODB_DATABASE_NAME]
                 coll = db['metadata_collection']
                 databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
                 databases = [x.get('database_name') for x in databases]
-                # print(coll,"11111",databases,"222222222")
 
                 collections = get_collections_for_user(user.get("userinfo", {}).get("username"), coll, databases)
-                print(collections,"collections")
 
                 context = {
                     'page': 'DB Import File',
@@ -430,28 +435,6 @@ def settings_view(request):
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except Exception as e:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
-
-
-def get_collections_for_user(username, coll, databases):
-    collections = []
-    for database in databases:
-        # print(database)
-        try:
-            if database in collections_data:
-                # print(database)
-                collections.extend(collections_data[database])
-            else:
-                colls = coll.find({"database_name": database})
-                for document in colls:
-
-                    if 'collection_names' in document:
-                        collection_names = document['collection_names']
-                        collections.extend(collection_names)
-                        collections_data[database] = collection_names
-        except Exception as e:
-            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
-    # print(collections)
-    return collections
 
 # @login_required(login_url='/login/')
 # def retrieve_metadata(request):

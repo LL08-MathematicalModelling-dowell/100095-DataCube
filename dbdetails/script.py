@@ -13,31 +13,30 @@ from rest_framework.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST)
 
 from .helper import run_backup, run_restore
 
+from pymongo import MongoClient
+from bson.json_util import dumps
 
 class MongoDatabases:
     def __init__(self):
-        self.config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-        self.cluster = pymongo.MongoClient(host=self.config['mongo_path'])
-        self.database = "meta_data"
+        self.client = MongoClient(settings.MONGODB_URI)
 
     def get_all_databases(self):
         try:
-            database_list = self.cluster.list_database_names()
-
+            database_list = self.client.list_database_names()
             return database_list
         except Exception as e:
-            print("Exception : ", str(e))
+            print("Exception: ", str(e))
             return None
 
     def get_all_database_collections(self, database):
         try:
-            dbc = self.cluster[database]
+            dbc = self.client[database]
             cols = dbc.list_collection_names()
             return cols
         except Exception as e:
-            print("Exception : ", str(e))
+            print("Exception: ", str(e))
             return None
-
+        
     def iterate_over_databases(self, db_names):
         try:
             data_array = []

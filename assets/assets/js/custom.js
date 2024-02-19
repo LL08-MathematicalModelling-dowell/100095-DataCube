@@ -503,13 +503,14 @@ function exportClusterApi() {
 }
 
 // --------------------------- Load mongocollections --------------------------------------
-function loadMongoCollection(page, perPage, collection, sort, fil, token) {
+function loadMongoCollection(page, perPage,db_name, collection, sort, fil, token) {
     _preloader('show');
     $.ajax({
         method: "POST",
         headers: {'X-CSRFToken': token},
         url: "/api/load_mongo_collection/",
         data: JSON.stringify({
+            "db_name": db_name,
             "collection": collection,
             "page": page,
             "per_page": perPage,
@@ -559,7 +560,8 @@ function loadMongoCollection(page, perPage, collection, sort, fil, token) {
 
 function pagination_right1(token) {
     var pg = parseInt($("#start1").attr('value'));
-    var tt = parseInt($("#total1").text());
+    var tt = parseInt($("#total1").text());  
+    var db = $("#database_name").text();
     var col = $("#collec_name").text();
     var sor = $("#sort_name").text();
     var p_pag = parseInt($("#per_page").text());
@@ -567,12 +569,13 @@ function pagination_right1(token) {
 
     pg = pg + 1;
     if (((pg - 1) * p_pag) <= tt) {
-        loadMongoCollection(pg, p_pag, col, sor, filter_name, token);
+        loadMongoCollection(pg, p_pag,db, col, sor, filter_name, token);
     }
 }
 
 function pagination_left1(token) {
     var pg = parseInt($("#start1").attr('value'));
+    var db = $("#database_name").text();
     var col = $("#collec_name").text();
     var sor = $("#sort_name").text();
     var p_pag = parseInt($("#per_page").text());
@@ -580,7 +583,7 @@ function pagination_left1(token) {
 
     pg = pg - 1;
     if (pg >= 1) {
-        loadMongoCollection(pg, p_pag, col, sor, filter_name, token);
+        loadMongoCollection(pg, p_pag,db, col, sor, filter_name, token);
     }
 }
 
@@ -588,18 +591,20 @@ function pagination_right(token) {
     var pg = parseInt($("#start").attr('value'));
     var tt = parseInt($("#total").text());
     var p_pag = parseInt($("#per_page").text());
+    var db = $("#database_name").text();
     var col = $("#collec_name").text();
     var sor = $("#sort_name").text();
     var filter_name = $("#filter_name").text();
 
     pg = pg + 1;
     if (((pg - 1) * p_pag) <= tt) {
-        loadMongoCollection(pg, p_pag, col, sor, filter_name, token);
+        loadMongoCollection(pg, p_pag, db, col, sor, filter_name, token);
     }
 }
 
 function pagination_left(token) {
     var pg = parseInt($("#start").attr('value'));
+    var db = $("#database_name").text();
     var col = $("#collec_name").text();
     var sor = $("#sort_name").text();
     var p_pag = parseInt($("#per_page").text());
@@ -607,7 +612,7 @@ function pagination_left(token) {
 
     pg = pg - 1;
     if (pg >= 1) {
-        loadMongoCollection(pg, p_pag, col, sor, filter_name, token);
+        loadMongoCollection(pg, p_pag, db, col, sor, filter_name, token);
     }
 }
 
