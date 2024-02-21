@@ -311,7 +311,12 @@ def settings_view(request):
                     collection_name = request.POST.get('colName')
                     field_labels = []
                     file = request.FILES.get('fileToImport')
-                    collection_names = [collection_name]
+                    collection_names = []
+                    metadata_records = coll.find(
+                    {"added_by": user.get("userinfo", {}).get("username"), "database_name": database_name})
+
+                    for record in metadata_records:
+                        collection_names = record['collection_names']
 
                     final_data = {
                         "database_name": database_name,

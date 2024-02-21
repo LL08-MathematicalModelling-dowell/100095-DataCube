@@ -439,6 +439,7 @@ class InitiateCron(APIView):
 class LoadMongoCollection(APIView):
     def post(self, request, *args, **kwargs):
         try:
+            database_name = request.data.get("db_name", "").strip()
             collection_name = request.data.get("collection", "").strip()
             page = int(request.data.get("page", 1))
             per_page = int(request.data.get("per_page", 5))
@@ -474,6 +475,9 @@ class LoadMongoCollection(APIView):
 
             for db_name in databases:
                 if db_name in ['config']:
+                    continue
+                
+                if database_name!=db_name:
                     continue
 
                 db = client[db_name]

@@ -149,15 +149,17 @@
             });
 
             $("#fetch_btn").click(function () {
+                var db_name = $('#select-databases').val();
                 var coll_name = $('#select-collections').val();
                 var sort_name = $('#sort_select').find(":selected").val();
                 var per_page__select = parseInt($('#per_page__select').find(":selected").val());
                 var filter = $("#query_filter").val();
+                $("#database_name").html(db_name);
                 $("#collec_name").html(coll_name);
                 $("#sort_name").html(sort_name);
                 $("#filter_name").html(filter);
 
-                loadMongoCollection(1, per_page__select, coll_name, sort_name, filter, '{{ csrf_token }}');
+                loadMongoCollection(1, per_page__select, db_name, coll_name, sort_name, filter, '{{ csrf_token }}');
             });
         });
     </script>
