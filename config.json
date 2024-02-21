@@ -1,4 +1,5 @@
 {
-  "mongo_path" : "mongodb://localhost:27017",
-  "data_base" : "bigdata"
+  "mongo_path": "mongodb://localhost:27017",
+  "database": "datacube_metadata",
+  "collection": "metadata_collection"
 }

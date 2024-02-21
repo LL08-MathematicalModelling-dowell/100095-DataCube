@@ -18,11 +18,11 @@ with open(config_path) as f:
 
 # MongoDB Configuration
 MONGODB_URI = config['mongo_path']
-MONGODB_DATABASE = config['data_base']
+MONGODB_DATABASE = config['database']
+MONGODB_COLLECTION = config['collection']
 MONGODB_CLIENT = MongoClient(MONGODB_URI)
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
+METADATA_DB = MONGODB_CLIENT[MONGODB_DATABASE]
+METADATA_COLLECTION = METADATA_DB[MONGODB_COLLECTION]
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-%vs+xh0tfg#)hoyl!!_j7epqz5+56@3pw1*k0_k90&6lnwvfb#'
