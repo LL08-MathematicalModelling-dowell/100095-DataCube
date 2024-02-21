@@ -20,7 +20,6 @@ with open(config_path) as f:
 MONGODB_URI = config['mongo_path']
 MONGODB_DATABASE = config['data_base']
 MONGODB_CLIENT = MongoClient(MONGODB_URI)
-MONGODB_DB = MONGODB_CLIENT[MONGODB_DATABASE]
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/

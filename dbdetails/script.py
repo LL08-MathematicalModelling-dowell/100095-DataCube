@@ -17,7 +17,7 @@ from .helper import run_backup, run_restore
 class MongoDatabases:
     def __init__(self):
         self.cluster = settings.MONGODB_CLIENT
-        self.database = settings.MONGODB_DB
+
 
     def get_all_databases(self):
         try:

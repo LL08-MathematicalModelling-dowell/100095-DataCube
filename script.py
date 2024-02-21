@@ -11,7 +11,6 @@ import pymongo
 class BackupScript:
     def __init__(self):
         self.cluster = settings.MONGODB_CLIENT
-        self.database = settings.MONGODB_DB
 
     def create_folder_backup(self, dbname):
         dt = datetime.now()

@@ -10,7 +10,6 @@ import pymongo
 class RestoreScript:
     def __init__(self):
         self.cluster = settings.MONGODB_CLIENT
-        self.database = settings.MONGODB_DB
         self.date_pattern = "^\d{4}-\d{2}-\d{2} \d{2}\.\d{2}$"
         self.home = f'{Path.home()}/backups/'
 
