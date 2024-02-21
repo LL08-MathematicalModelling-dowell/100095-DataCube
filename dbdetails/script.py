@@ -16,14 +16,12 @@ from .helper import run_backup, run_restore
 
 class MongoDatabases:
     def __init__(self):
-        self.config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-        self.cluster = pymongo.MongoClient(host=self.config['mongo_path'])
-        self.database = "meta_data"
+        self.cluster = settings.MONGODB_CLIENT
+        self.database = settings.MONGODB_DB
 
     def get_all_databases(self):
         try:
             database_list = self.cluster.list_database_names()
-
             return database_list
         except Exception as e:
             print("Exception : ", str(e))

@@ -13,11 +13,17 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import re
 import time
-
+from pymongo import MongoClient
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DataCrudView(APIView):
+    def measure_execution_time(self, start_time):
+        end_time = time.time()
+        time_taken = end_time - start_time
+        return time_taken
+    
     def get(self, request, *args, **kwargs):
+        start_time = time.time()
         try:
             serializer = InputGetSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -39,8 +45,8 @@ class DataCrudView(APIView):
                         print(ex)
                         pass
 
-            config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
+
+            cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
@@ -89,14 +95,18 @@ class DataCrudView(APIView):
                 msg = "Data found!"
             else:
                 msg = "No data exists for this query/collection"
-
+            time_taken = self.measure_execution_time(start_time)
+            print(f"fetch operation took: {time_taken} seconds")
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
+            time_taken = self.measure_execution_time(start_time)
+            print(f"fetch operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
+        start_time = time.time()
         try:
             serializer = InputPostSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -111,8 +121,8 @@ class DataCrudView(APIView):
             # if (operation == "fetch") or ("filters" in data):
             #     return DataCrudView.get(self, request, *args, **kwargs)
 
-            config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
+            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
@@ -155,18 +165,26 @@ class DataCrudView(APIView):
                         status=status.HTTP_400_BAD_REQUEST)
                 else:
                     inserted_data = new_collection.insert_one(data_to_insert)
+
+            time_taken = self.measure_execution_time(start_time)
+            print(f"insert operation took: {time_taken} seconds")
             return Response(
                 {"success": True, "message": "Data inserted successfully!",
                  "data": {"inserted_id": str(inserted_data.inserted_id)}},
                 status=status.HTTP_201_CREATED)
         except ValidationError as ve:
+            time_taken = self.measure_execution_time(start_time)
+            print(f"insert operation failed. Time taken: {time_taken} seconds. Error: {ve}")
             return Response({"success": False, "message": str(ve), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            time_taken = self.measure_execution_time(start_time)
+            print(f"insert operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, *args, **kwargs):
+        start_time = time.time()
         try:
             serializer = InputPutSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -187,8 +205,8 @@ class DataCrudView(APIView):
                         print(ex)
                         pass
 
-            config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
+            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
@@ -222,15 +240,20 @@ class DataCrudView(APIView):
                     status=status.HTTP_404_NOT_FOUND)
 
             result = new_collection.update_many(query, {"$set": update_data})
+            time_taken = self.measure_execution_time(start_time)
+            print(f"update operation took: {time_taken} seconds")
             return Response(
                 {"success": True, "message": f"{result.modified_count} documents updated successfully!",
                  "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
+            time_taken = self.measure_execution_time(start_time)
+            print(f"update operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, *args, **kwargs):
+        start_time = time.time()
         try:
             serializer = InputDeleteSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -249,8 +272,8 @@ class DataCrudView(APIView):
                     except Exception as ex:
                         print(ex)
                         pass
-            config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
+            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
@@ -284,17 +307,26 @@ class DataCrudView(APIView):
                     status=status.HTTP_404_NOT_FOUND)
 
             result = new_collection.delete_many(query)
+            time_taken = self.measure_execution_time(start_time)
+            print(f"delete operation took: {time_taken} seconds")
             return Response(
                 {"success": True, "message": f"{result.deleted_count} documents deleted successfully!", "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
+            time_taken = self.measure_execution_time(start_time)
+            print(f"delete operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class GetDataView(APIView):
+    def measure_execution_time(self, start_time):
+        end_time = time.time()
+        time_taken = end_time - start_time
+        return time_taken
     def get(self, request, *args, **kwargs):
+        start_time = time.time()
         try:
             database = request.GET.get('db_name')
             coll = request.GET.get('coll_name')
@@ -314,8 +346,8 @@ class GetDataView(APIView):
                         print(ex)
                         pass
 
-            config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
+            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
@@ -365,13 +397,19 @@ class GetDataView(APIView):
             else:
                 msg = "No data exists for this query/collection"
 
+            time_taken = self.measure_execution_time(start_time)
+            print(f"fetch operation took: {time_taken} seconds")
+
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
+            time_taken = self.measure_execution_time(start_time)
+            print(f"fetch operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
+        start_time = time.time()
         try:
             serializer = InputGetSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -393,8 +431,8 @@ class GetDataView(APIView):
                         print(ex)
                         pass
 
-            config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
+            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
@@ -443,9 +481,14 @@ class GetDataView(APIView):
             else:
                 msg = "No data exists for this query/collection"
 
+            time_taken = self.measure_execution_time(start_time)
+            print(f"fetch operation took: {time_taken} seconds")
+
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
+            time_taken = self.measure_execution_time(start_time)
+            print(f"fetch operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
@@ -469,9 +512,9 @@ class CollectionView(APIView):
                         {"success": False, "message": res,
                          "data": []},
                         status=status.HTTP_404_NOT_FOUND)
-            config = json.loads(
-                Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
+            # config = json.loads(
+            #     Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            cluster = settings.MONGODB_CLIENT
 
             db = cluster['datacube_metadata']
             coll = db['metadata_collection']
@@ -506,9 +549,9 @@ class AddCollection(APIView):
             coll_names = data.get('coll_names')
             api_key = data.get('api_key')
 
-            config = json.loads(
-                Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = pymongo.MongoClient(host=config['mongo_path'])
+            # config = json.loads(
+            #     Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             coll = db['metadata_collection']
 

@@ -2,15 +2,15 @@ import json
 import os
 import re
 from pathlib import Path
-
+from django.conf import settings
 import bson
 import pymongo
 
 
 class RestoreScript:
     def __init__(self):
-        self.config = json.loads(Path('config.json').read_text())
-        self.cluster = pymongo.MongoClient(host=self.config['mongo_path'])
+        self.cluster = settings.MONGODB_CLIENT
+        self.database = settings.MONGODB_DB
         self.date_pattern = "^\d{4}-\d{2}-\d{2} \d{2}\.\d{2}$"
         self.home = f'{Path.home()}/backups/'
 

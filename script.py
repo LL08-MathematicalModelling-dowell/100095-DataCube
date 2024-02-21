@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+from django.conf import settings
 
 import bson
 import pymongo
@@ -9,9 +10,8 @@ import pymongo
 
 class BackupScript:
     def __init__(self):
-        self.config = json.loads(Path('config.json').read_text())
-        self.cluster = pymongo.MongoClient(host=self.config['mongo_path'])
-        self.database = "meta_data"
+        self.cluster = settings.MONGODB_CLIENT
+        self.database = settings.MONGODB_DB
 
     def create_folder_backup(self, dbname):
         dt = datetime.now()
