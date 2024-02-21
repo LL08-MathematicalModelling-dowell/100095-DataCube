@@ -1,3 +1,4 @@
+import time
 import requests
 
 PAYMENT_API_URL = 'https://100105.pythonanywhere.com/api/v3/process-services/?type=api_service&api_key='
@@ -15,3 +16,7 @@ def check_api_key(api_key):
             return res['message']
     except Exception:
         return "Something went wrong"
+
+def measure_execution_time(start_time, end_time):
+    time_taken = end_time - start_time
+    return time_taken

@@ -1,9 +1,25 @@
+from distutils import config
 from pathlib import Path
 import os
 import datetime
 import sys
+import json
+from pymongo import MongoClient
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Convert BASE_DIR to a Path object
+BASE_DIR_PATH = Path(BASE_DIR)
+
+config_path = BASE_DIR_PATH / 'config.json'
+
+with open(config_path) as f:
+    config = json.load(f)
+
+# MongoDB Configuration
+MONGODB_URI = config['mongo_path']
+MONGODB_DATABASE = config['data_base']
+MONGODB_CLIENT = MongoClient(MONGODB_URI)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/

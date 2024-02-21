@@ -13,6 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+import requests
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST)
@@ -283,17 +284,37 @@ def get_collections(request):
     return JsonResponse({'collections': collections}, status=200, safe=False)
 
 
+
 class GetCollections(APIView):
     def post(self, request, *args, **kwargs):
         databases = request.data.get('databases', [])
-        mongodb = MongoDatabases()
-        collections = []
-        data = {}
-        for db in databases:
-            collections.extend(mongodb.get_all_database_collections(db))
-            data.update({db: mongodb.get_all_database_collections(db)})
+        url = "https://100014.pythonanywhere.com/api/userinfo/"
+        session_id = request.session.get("session_id")
+        if session_id:
+            resp = requests.post(url, data={"session_id": session_id})
+            user = json.loads(resp.text)
+            cluster = settings.MONGODB_CLIENT
+            db = cluster["datacube_metadata"]
+            coll = db['metadata_collection']
+            databases_from_db = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+            databasesDB = [x.get('database_name') for x in databases_from_db]
 
-        return JsonResponse({'collections': collections, 'collections_data': data}, status=HTTP_200_OK)
+            collections = []
+            data = {}
+            for db_name in databasesDB:
+                if db_name in databases:
+                    colls = coll.find({"database_name": db_name})
+                    if colls:
+                        # Extract collection names from the cursor
+                        collection_names = [doc["collection_names"] for doc in colls]
+                        for collection_name_list in collection_names:
+                            for collection_name_list_item in collection_name_list:
+                                collections.append(collection_name_list_item)
+                    data[db_name] = collections
+
+            return JsonResponse({'collections': collections, 'collections_data': data}, status=HTTP_200_OK)
+        else:
+            return JsonResponse({'error': 'Session ID not found'}, status=HTTP_400_BAD_REQUEST)
 
 
 @csrf_exempt
@@ -418,6 +439,7 @@ class InitiateCron(APIView):
 class LoadMongoCollection(APIView):
     def post(self, request, *args, **kwargs):
         try:
+            database_name = request.data.get("db_name", "").strip()
             collection_name = request.data.get("collection", "").strip()
             page = int(request.data.get("page", 1))
             per_page = int(request.data.get("per_page", 5))
@@ -453,6 +475,9 @@ class LoadMongoCollection(APIView):
 
             for db_name in databases:
                 if db_name in ['config']:
+                    continue
+                
+                if database_name!=db_name:
                     continue
 
                 db = client[db_name]

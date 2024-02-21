@@ -41,10 +41,9 @@
                                 enctype="multipart/form-data" onsubmit="return validateForm()">
                                 {% csrf_token %}
                                 <div class="form-group">
-                                    <select id="select-databases" name="databaseName"
-                                        class="form-select form-select-lg mr-3 branch_s"
-                                        style="background-color: white; color: black;">
-                                        <option value="select" selected>Select Database</option>
+                                    <select id="select-databases" name="databaseName" class="form-select form-select-lg mr-3 branch_s"
+                                        style="background-color: white; color: black;" required>
+                                        <option value="" selected disabled>Select Database</option>
                                         {% for db in databases %}
                                         <option value="{{ db }}">{{ db }}</option>
                                         {% endfor %}
@@ -53,10 +52,9 @@
                                 <br>
                                 <div class="form-group">
                                     <div>
-                                        <select id="select-collections" name="colName"
-                                            class="form-select form-select-lg mr-3 branch_s"
-                                            style="background-color: white; color: black;">
-                                            <option value="select" selected>Select Collection</option>
+                                        <select id="select-collections" name="colName" class="form-select form-select-lg mr-3 branch_s"
+                                            style="background-color: white; color: black;" required>
+                                            <option value="" selected disabled>Select Collection</option>
                                         </select>
                                     </div>
                                 </div>
@@ -66,8 +64,7 @@
                                     <label for="fileToImport">
                                         <h6>File to Import <span style="color: red;">*</span>:</h6>
                                     </label>
-                                    <input type="file" class="ms-3" id="fileToImport" name="fileToImport"
-                                        accept=".json, .csv" required>
+                                    <input type="file" class="ms-3" id="fileToImport" name="fileToImport" accept=".json, .csv" required>
                                 </div>
                                 <br>
                                 <div style="color: red;" class="text-center" id="metaError"></div>
@@ -78,6 +75,7 @@
                                 </div>
                                 <br>
                             </form>
+
                         </div>
 
                         <script>
@@ -106,8 +104,10 @@
 <script>
     $(document).ready(function () {
         $('#select-databases').on('change', function () {
+            $('#fileToImport').focus();
             let db = $(this).val();
             getCollectionsDataView('{{ csrf_token }}', db);
+            
         })
     });
 </script>
