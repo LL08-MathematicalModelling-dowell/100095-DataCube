@@ -8,7 +8,7 @@ from django.conf import settings
 from .serializers import *
 import json
 from rest_framework.response import Response
-from .helpers import check_api_key
+from .helpers import check_api_key, measure_execution_time
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import re
@@ -17,13 +17,7 @@ from pymongo import MongoClient
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DataCrudView(APIView):
-    def measure_execution_time(self, start_time):
-        end_time = time.time()
-        time_taken = end_time - start_time
-        return time_taken
-    
     def get(self, request, *args, **kwargs):
-        start_time = time.time()
         try:
             serializer = InputGetSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -45,12 +39,13 @@ class DataCrudView(APIView):
                         print(ex)
                         pass
 
-
             cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
-
+            start_time = time.time()
             mongoDb = collection.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"fetch operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db:")
 
             if not mongoDb:
                 return Response(
@@ -58,7 +53,11 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
+            start_time = time.time()
             mongodb_coll = collection.find_one({"collection_names": {"$in": [coll]}})
+            end_time = time.time()
+            print(f"fetch operation mongodb_coll took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db:")
+
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
@@ -95,13 +94,10 @@ class DataCrudView(APIView):
                 msg = "Data found!"
             else:
                 msg = "No data exists for this query/collection"
-            time_taken = self.measure_execution_time(start_time)
-            print(f"fetch operation took: {time_taken} seconds")
+
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            time_taken = self.measure_execution_time(start_time)
-            print(f"fetch operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
@@ -118,15 +114,14 @@ class DataCrudView(APIView):
             data_to_insert = data.get('data', {})
             api_key = data.get('api_key')
 
-            # if (operation == "fetch") or ("filters" in data):
-            #     return DataCrudView.get(self, request, *args, **kwargs)
-
-            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
+            start_time = time.time()
             mongoDb = collection.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
 
             if not mongoDb:
                 return Response(
@@ -134,7 +129,11 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
+            start_time = time.time()
             mongodb_coll = collection.find_one({"collection_names": {"$in": [coll]}})
+            end_time = time.time()
+            print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
+
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
@@ -164,27 +163,23 @@ class DataCrudView(APIView):
                          "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
                 else:
+                    start_time = time.time()
                     inserted_data = new_collection.insert_one(data_to_insert)
+                    end_time = time.time()
+                    print(f"inserted_data operation took: {measure_execution_time(start_time, end_time)} seconds for insert")
 
-            time_taken = self.measure_execution_time(start_time)
-            print(f"insert operation took: {time_taken} seconds")
             return Response(
                 {"success": True, "message": "Data inserted successfully!",
                  "data": {"inserted_id": str(inserted_data.inserted_id)}},
                 status=status.HTTP_201_CREATED)
         except ValidationError as ve:
-            time_taken = self.measure_execution_time(start_time)
-            print(f"insert operation failed. Time taken: {time_taken} seconds. Error: {ve}")
             return Response({"success": False, "message": str(ve), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            time_taken = self.measure_execution_time(start_time)
-            print(f"insert operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, *args, **kwargs):
-        start_time = time.time()
         try:
             serializer = InputPutSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -205,12 +200,14 @@ class DataCrudView(APIView):
                         print(ex)
                         pass
 
-            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
+            start_time = time.time()
             mongoDb = collection.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
 
             if not mongoDb:
                 return Response(
@@ -218,12 +215,10 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
+            start_time = time.time()
             mongodb_coll = collection.find_one({"collection_names": {"$in": [coll]}})
-            if not mongodb_coll:
-                return Response(
-                    {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+            end_time = time.time()
+            print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
 
             new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
@@ -231,6 +226,7 @@ class DataCrudView(APIView):
             if operation not in ["update"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
             res = check_api_key(api_key)
 
             if res != "success":
@@ -239,21 +235,20 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
+            start_time = time.time()
             result = new_collection.update_many(query, {"$set": update_data})
-            time_taken = self.measure_execution_time(start_time)
-            print(f"update operation took: {time_taken} seconds")
+            end_time = time.time()
+            print(f"update_many operation took: {measure_execution_time(start_time, end_time)} seconds..")
+
             return Response(
                 {"success": True, "message": f"{result.modified_count} documents updated successfully!",
                  "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
-            time_taken = self.measure_execution_time(start_time)
-            print(f"update operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, *args, **kwargs):
-        start_time = time.time()
         try:
             serializer = InputDeleteSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -272,12 +267,15 @@ class DataCrudView(APIView):
                     except Exception as ex:
                         print(ex)
                         pass
-            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            
             cluster = settings.MONGODB_CLIENT
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
+            start_time = time.time()
             mongoDb = collection.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"delete operation find one coll took: {measure_execution_time(start_time, end_time)} seconds for mongoDb")
 
             if not mongoDb:
                 return Response(
@@ -306,27 +304,22 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
+            start_time = time.time()
             result = new_collection.delete_many(query)
-            time_taken = self.measure_execution_time(start_time)
-            print(f"delete operation took: {time_taken} seconds")
+            end_time = time.time()
+            print(f"delete operation took: {measure_execution_time(start_time, end_time)} seconds for delete")
+
             return Response(
                 {"success": True, "message": f"{result.deleted_count} documents deleted successfully!", "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
-            time_taken = self.measure_execution_time(start_time)
-            print(f"delete operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class GetDataView(APIView):
-    def measure_execution_time(self, start_time):
-        end_time = time.time()
-        time_taken = end_time - start_time
-        return time_taken
     def get(self, request, *args, **kwargs):
-        start_time = time.time()
         try:
             database = request.GET.get('db_name')
             coll = request.GET.get('coll_name')
@@ -351,7 +344,10 @@ class GetDataView(APIView):
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
+            start_time = time.time()
             mongoDb = collection.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"fetch operation find one coll took: {measure_execution_time(start_time, end_time)} seconds")
 
             if not mongoDb:
                 return Response(
@@ -397,19 +393,13 @@ class GetDataView(APIView):
             else:
                 msg = "No data exists for this query/collection"
 
-            time_taken = self.measure_execution_time(start_time)
-            print(f"fetch operation took: {time_taken} seconds")
-
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            time_taken = self.measure_execution_time(start_time)
-            print(f"fetch operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
-        start_time = time.time()
         try:
             serializer = InputGetSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -436,7 +426,10 @@ class GetDataView(APIView):
             db = cluster['datacube_metadata']
             collection = db['metadata_collection']
 
+            start_time = time.time()
             mongoDb = collection.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"fetch operation find one coll took: {measure_execution_time(start_time, end_time)} seconds for mongodb_coll")
 
             if not mongoDb:
                 return Response(
@@ -444,7 +437,11 @@ class GetDataView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
+            start_time = time.time()
             mongodb_coll = collection.find_one({"collection_names": {"$in": [coll]}})
+            end_time = time.time()
+            print(f"fetch operation mongodb_coll took: {measure_execution_time(start_time, end_time)} seconds for mongodb_coll ")
+
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
@@ -481,14 +478,9 @@ class GetDataView(APIView):
             else:
                 msg = "No data exists for this query/collection"
 
-            time_taken = self.measure_execution_time(start_time)
-            print(f"fetch operation took: {time_taken} seconds")
-
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            time_taken = self.measure_execution_time(start_time)
-            print(f"fetch operation failed. Time taken: {time_taken} seconds. Error: {e}")
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
@@ -518,7 +510,10 @@ class CollectionView(APIView):
 
             db = cluster['datacube_metadata']
             coll = db['metadata_collection']
+            start_time = time.time()
             mongoDb = coll.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"fetch operation mongoDb find one took: {measure_execution_time(start_time, end_time)} seconds..")
 
             if not mongoDb:
                 return Response(
@@ -527,7 +522,11 @@ class CollectionView(APIView):
                     status=status.HTTP_404_NOT_FOUND)
 
             db_coll = cluster["datacube_" + database]
+            start_time = time.time()
             collections_list = db_coll.list_collection_names()
+            end_time = time.time()
+            print(f"fetch operation collections_list took: {measure_execution_time(start_time, end_time)} seconds for collections_list")
+
             return Response(
                 {"success": True, "message": f"Collections found!",
                  "data": collections_list},
@@ -555,7 +554,11 @@ class AddCollection(APIView):
             db = cluster['datacube_metadata']
             coll = db['metadata_collection']
 
+            start_time = time.time()
             mongoDb = coll.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"add collection mongoDb took: {measure_execution_time(start_time, end_time)} seconds for mongoDb")
+
 
             if not mongoDb:
                 return Response(
@@ -577,7 +580,10 @@ class AddCollection(APIView):
             }
 
             # Check if the provided 'dbname' exists in the 'database_name' field
+            start_time = time.time()
             collections = coll.find_one({"database_name": database})
+            end_time = time.time()
+            print(f"add collection find one took: {measure_execution_time(start_time, end_time)} seconds..")
 
             if collections:
                 # Append collections to the existing 'metadata_collection' document
@@ -605,18 +611,24 @@ class AddCollection(APIView):
                 updated_collections = list(
                     set(existing_collections + new_collections))
 
+                start_time = time.time()
                 coll.update_one(
                     {"database_name": database},
                     {"$set": {"collection_names": updated_collections}}
                 )
+                end_time = time.time()
+                print(f"update collection one took: {measure_execution_time(start_time, end_time)} seconds")
             else:
                 # Create a new 'metadata_collection' document for the database
+                start_time = time.time()
                 coll.insert_one({
                     "database_name": database,
                     "collection_names": final_data["collection_names"],
                     "number_of_collections": final_data["number_of_collections"],
                     "added_by": final_data["added_by"]
                 })
+                end_time = time.time()
+                print(f"insert collection one took: {measure_execution_time(start_time, end_time)} seconds")
 
             return Response(
                 {"success": True, "message": f"Collection added successfully!",
