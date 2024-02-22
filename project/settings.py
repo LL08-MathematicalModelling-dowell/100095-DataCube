@@ -12,7 +12,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIR_PATH = Path(BASE_DIR)
 
 config_path = BASE_DIR_PATH / 'config.json'
-
 with open(config_path) as f:
     config = json.load(f)
 
@@ -31,7 +30,6 @@ if len(sys.argv) >= 2 and sys.argv[1] == 'runserver':
     DEBUG = True
 else:
     DEBUG = False
-DEBUG = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -105,7 +103,7 @@ DATABASES = {
     }
 }
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['datacube.uxlivinglab.online', '127.0.0.1', 'localhost']
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_HEADERS = ['*']
 
