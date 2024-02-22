@@ -27,13 +27,12 @@ METADATA_COLLECTION = METADATA_DB[MONGODB_COLLECTION]
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-%vs+xh0tfg#)hoyl!!_j7epqz5+56@3pw1*k0_k90&6lnwvfb#'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-# if len(sys.argv) >= 2 and sys.argv[1] == 'runserver':
-#     DEBUG = True
-# else:
-#     DEBUG = False
-# Application definition
+if len(sys.argv) >= 2 and sys.argv[1] == 'runserver':
+    DEBUG = True
+else:
+    DEBUG = False
 DEBUG = True
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
