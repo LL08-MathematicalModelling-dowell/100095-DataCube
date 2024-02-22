@@ -40,10 +40,10 @@ class DataCrudView(APIView):
                         pass
 
             cluster = settings.MONGODB_CLIENT
-            start_time = time.time()
+            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"fetch operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db:")
+            # end_time = time.time()
+            # print(f"fetch operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db:")
 
             if not mongoDb:
                 return Response(
@@ -51,10 +51,10 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            start_time = time.time()
+            # start_time = time.time()
             mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            end_time = time.time()
-            print(f"fetch operation mongodb_coll took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db:")
+            # end_time = time.time()
+            # print(f"fetch operation mongodb_coll took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db:")
 
             if not mongodb_coll:
                 return Response(
@@ -100,7 +100,6 @@ class DataCrudView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
-        start_time = time.time()
         try:
             serializer = InputPostSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -115,10 +114,10 @@ class DataCrudView(APIView):
             cluster = settings.MONGODB_CLIENT
 
 
-            start_time = time.time()
+            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
+            # end_time = time.time()
+            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
 
             if not mongoDb:
                 return Response(
@@ -126,10 +125,10 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            start_time = time.time()
+            # start_time = time.time()
             mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            end_time = time.time()
-            print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
+            # end_time = time.time()
+            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
 
             if not mongodb_coll:
                 return Response(
@@ -160,10 +159,10 @@ class DataCrudView(APIView):
                          "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    start_time = time.time()
+                    # start_time = time.time()
                     inserted_data = new_collection.insert_one(data_to_insert)
-                    end_time = time.time()
-                    print(f"inserted_data operation took: {measure_execution_time(start_time, end_time)} seconds for insert")
+                    # end_time = time.time()
+                    # print(f"inserted_data operation took: {measure_execution_time(start_time, end_time)} seconds for insert")
 
             return Response(
                 {"success": True, "message": "Data inserted successfully!",
@@ -199,10 +198,10 @@ class DataCrudView(APIView):
 
             cluster = settings.MONGODB_CLIENT
 
-            start_time = time.time()
+            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
+            # end_time = time.time()
+            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
 
             if not mongoDb:
                 return Response(
@@ -210,10 +209,15 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            start_time = time.time()
+            # start_time = time.time()
             mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            end_time = time.time()
-            print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
+            # end_time = time.time()
+            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
+            if not mongodb_coll:
+                return Response(
+                    {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
+                     "data": []},
+                    status=status.HTTP_404_NOT_FOUND)
 
             new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
@@ -230,10 +234,10 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            start_time = time.time()
+            # start_time = time.time()
             result = new_collection.update_many(query, {"$set": update_data})
-            end_time = time.time()
-            print(f"update_many operation took: {measure_execution_time(start_time, end_time)} seconds..")
+            # end_time = time.time()
+            # print(f"update_many operation took: {measure_execution_time(start_time, end_time)} seconds..")
 
             return Response(
                 {"success": True, "message": f"{result.modified_count} documents updated successfully!",
@@ -265,10 +269,10 @@ class DataCrudView(APIView):
             
             cluster = settings.MONGODB_CLIENT
 
-            start_time = time.time()
+            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"delete operation find one coll took: {measure_execution_time(start_time, end_time)} seconds for mongoDb")
+            # end_time = time.time()
+            # print(f"delete operation find one coll took: {measure_execution_time(start_time, end_time)} seconds for mongoDb")
 
             if not mongoDb:
                 return Response(
@@ -297,10 +301,10 @@ class DataCrudView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            start_time = time.time()
+            # start_time = time.time()
             result = new_collection.delete_many(query)
-            end_time = time.time()
-            print(f"delete operation took: {measure_execution_time(start_time, end_time)} seconds for delete")
+            # end_time = time.time()
+            # print(f"delete operation took: {measure_execution_time(start_time, end_time)} seconds for delete")
 
             return Response(
                 {"success": True, "message": f"{result.deleted_count} documents deleted successfully!", "data": []},
@@ -336,10 +340,10 @@ class GetDataView(APIView):
             cluster = settings.MONGODB_CLIENT
 
 
-            start_time = time.time()
+            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"fetch operation find one coll took: {measure_execution_time(start_time, end_time)} seconds")
+            # end_time = time.time()
+            # print(f"fetch operation find one coll took: {measure_execution_time(start_time, end_time)} seconds")
 
             if not mongoDb:
                 return Response(
@@ -416,10 +420,10 @@ class GetDataView(APIView):
             # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = settings.MONGODB_CLIENT
 
-            start_time = time.time()
+            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"fetch operation find one coll took: {measure_execution_time(start_time, end_time)} seconds for mongodb_coll")
+            # end_time = time.time()
+            # print(f"fetch operation find one coll took: {measure_execution_time(start_time, end_time)} seconds for mongodb_coll")
 
             if not mongoDb:
                 return Response(
@@ -427,10 +431,10 @@ class GetDataView(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            start_time = time.time()
+            # start_time = time.time()
             mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            end_time = time.time()
-            print(f"fetch operation mongodb_coll took: {measure_execution_time(start_time, end_time)} seconds for mongodb_coll ")
+            # end_time = time.time()
+            # print(f"fetch operation mongodb_coll took: {measure_execution_time(start_time, end_time)} seconds for mongodb_coll ")
 
             if not mongodb_coll:
                 return Response(
