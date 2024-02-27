@@ -2,11 +2,11 @@ import time
 import requests
 
 PAYMENT_API_URL = 'https://100105.pythonanywhere.com/api/v3/process-services/?type=api_service&api_key='
-
+from django.conf import settings
 
 def check_api_key(api_key):
     try:
-        if api_key == "wp#!zf&}GPiy06'7'G%3:6]l;].V|<[KIsmlGZCcgm9Enx664fi1psHbJWBM1FZK":
+        if api_key == settings.API_KEY:
             return "success"
         else:
             res = requests.post(f"{PAYMENT_API_URL}{api_key}", data={"service_id": "DOWELL10043"})
