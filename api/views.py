@@ -520,7 +520,7 @@ class CollectionView(APIView):
             coll = db['metadata_collection']
 
             # Query MongoDB for metadata records associated with the user ID
-            metadata_records = coll.find({})
+            metadata_records = coll.find({"database_name":database})
 
             collections = []
             for record in metadata_records:
