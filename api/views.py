@@ -1,3 +1,4 @@
+import traceback
 import pymongo
 from bson import ObjectId
 from django.core.exceptions import ValidationError
@@ -99,7 +100,8 @@ class DataCrudView(APIView):
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
+            traceback.print_exc()
+            return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
@@ -178,7 +180,8 @@ class DataCrudView(APIView):
             return Response({"success": False, "message": str(ve), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
+            traceback.print_exc()
+            return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, *args, **kwargs):
@@ -250,7 +253,8 @@ class DataCrudView(APIView):
                  "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
+            traceback.print_exc()
+            return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, *args, **kwargs):
@@ -316,7 +320,8 @@ class DataCrudView(APIView):
                 {"success": True, "message": f"{result.deleted_count} documents deleted successfully!", "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
+            traceback.print_exc()
+            return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -398,7 +403,8 @@ class GetDataView(APIView):
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
+            traceback.print_exc()
+            return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
@@ -481,7 +487,8 @@ class GetDataView(APIView):
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
+            traceback.print_exc()
+            return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -507,8 +514,6 @@ class CollectionView(APIView):
             cluster = settings.MONGODB_CLIENT
             start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"fetch operation mongoDb find one took: {measure_execution_time(start_time, end_time)} seconds..")
 
             if not mongoDb:
                 return Response(
@@ -546,13 +551,7 @@ class AddCollection(APIView):
             database = data.get('db_name')
             coll_names = data.get('coll_names')
             api_key = data.get('api_key')
-
-
-            start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"add collection mongoDb took: {measure_execution_time(start_time, end_time)} seconds for mongoDb")
-
 
             if not mongoDb:
                 return Response(
@@ -574,10 +573,7 @@ class AddCollection(APIView):
             }
 
             # Check if the provided 'dbname' exists in the 'database_name' field
-            start_time = time.time()
             collections = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            end_time = time.time()
-            print(f"add collection find one took: {measure_execution_time(start_time, end_time)} seconds..")
 
             if collections:
                 # Append collections to the existing 'metadata_collection' document
@@ -605,29 +601,24 @@ class AddCollection(APIView):
                 updated_collections = list(
                     set(existing_collections + new_collections))
 
-                start_time = time.time()
                 settings.METADATA_COLLECTION.update_one(
                     {"database_name": database},
                     {"$set": {"collection_names": updated_collections}}
                 )
-                end_time = time.time()
-                print(f"update collection one took: {measure_execution_time(start_time, end_time)} seconds")
+
             else:
                 # Create a new 'metadata_collection' document for the database
-                start_time = time.time()
                 settings.METADATA_COLLECTION.insert_one({
                     "database_name": database,
                     "collection_names": final_data["collection_names"],
                     "number_of_collections": final_data["number_of_collections"],
                     "added_by": final_data["added_by"]
                 })
-                end_time = time.time()
-                print(f"insert collection one took: {measure_execution_time(start_time, end_time)} seconds")
 
             return Response(
                 {"success": True, "message": f"Collection added successfully!",
                  "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
+            return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
