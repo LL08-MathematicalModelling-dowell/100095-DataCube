@@ -1,10 +1,13 @@
 import pymongo
 from bson import ObjectId
 from django.core.exceptions import ValidationError
+import requests
 from rest_framework import status
 from rest_framework.views import APIView
 from pathlib import Path
 from django.conf import settings
+
+from dbdetails.script import MongoDatabases
 from .serializers import *
 import json
 from rest_framework.response import Response
@@ -110,6 +113,7 @@ class DataCrudView(APIView):
             operation = data.get('operation')
             data_to_insert = data.get('data', {})
             api_key = data.get('api_key')
+            payment = data.get('payment', True)
 
             cluster = settings.MONGODB_CLIENT
 
@@ -143,12 +147,14 @@ class DataCrudView(APIView):
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-            res = check_api_key(api_key)
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res,
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+            if payment:
+                res = check_api_key(api_key)
+
+                if res != "success":
+                    return Response(
+                        {"success": False, "message": res,
+                         "data": []},
+                        status=status.HTTP_404_NOT_FOUND)
 
             if operation == "insert":
                 total_documents = new_collection.count_documents({})
@@ -478,7 +484,6 @@ class GetDataView(APIView):
             return Response({"success": False, "message": e.args[0], "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
-
 @method_decorator(csrf_exempt, name='dispatch')
 class CollectionView(APIView):
     def get(self, request, *args, **kwargs):
@@ -498,11 +503,8 @@ class CollectionView(APIView):
                         {"success": False, "message": res,
                          "data": []},
                         status=status.HTTP_404_NOT_FOUND)
-            # config = json.loads(
-            #     Path(str(settings.BASE_DIR) + '/config.json').read_text())
+            
             cluster = settings.MONGODB_CLIENT
-
-
             start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
             end_time = time.time()
@@ -510,23 +512,27 @@ class CollectionView(APIView):
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
+                    {"success": False, "message": f"Database '{database}' does not exist in Datacube", "data": []},
                     status=status.HTTP_404_NOT_FOUND)
+            
+            cluster = settings.MONGODB_CLIENT
+            db = cluster["datacube_metadata"]
+            coll = db['metadata_collection']
 
-            db_coll = cluster["datacube_" + database]
-            start_time = time.time()
-            collections_list = db_coll.list_collection_names()
-            end_time = time.time()
-            print(f"fetch operation collections_list took: {measure_execution_time(start_time, end_time)} seconds for collections_list")
+            # Query MongoDB for metadata records associated with the user ID
+            metadata_records = coll.find({})
 
+            collections = []
+            for record in metadata_records:
+                # Add this line for debugging
+                collections.append(record.get('collection_names', []))
+     
             return Response(
-                {"success": True, "message": f"Collections found!",
-                 "data": collections_list},
+                {"success": True, "message": f"Collections found!", "data": collections},
                 status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"success": False, "message": e.args[0], "data": []},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @method_decorator(csrf_exempt, name='dispatch')

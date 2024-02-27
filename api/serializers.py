@@ -31,6 +31,7 @@ class InputPostSerializer(serializers.Serializer):
     db_name = serializers.CharField(max_length=255, required=True)
     operation = serializers.ChoiceField(choices=operations, required=True)
     data = serializers.JSONField(required=True)
+    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
 
 
 class InputPutSerializer(serializers.Serializer):
@@ -59,6 +60,6 @@ class AddCollectionPOSTSerializer(serializers.Serializer):
 
 
 class GetCollectionsSerializer(serializers.Serializer):
-    api_key = serializers.CharField(max_length=510)
+    api_key = serializers.CharField(max_length=510, required=True)
     db_name = serializers.CharField(max_length=100)
     payment = serializers.BooleanField(default=True, allow_null=True, required=False)

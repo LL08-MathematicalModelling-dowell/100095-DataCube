@@ -340,7 +340,7 @@ def settings_view(request):
                         coll.insert_one(final_data)
 
                     # Now create the database and collection in mongodb and insert data
-                    db = cluster[str(database_name)]
+                    db = cluster["dataqube_"+str(database_name)]
                     coll = db[str(collection_name)]
 
                     if file:
