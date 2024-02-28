@@ -559,6 +559,13 @@ class AddCollection(APIView):
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
+            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll_names]}})
+            if mongodb_coll:
+                return Response(
+                    {"success": False, "message": f"Collection with name '{coll_names}' already exists",
+                     "data": []},
+                    status=status.HTTP_400_BAD_REQUEST)
+
             res = check_api_key(api_key)
             if res != "success":
                 return Response(
