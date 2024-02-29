@@ -444,63 +444,45 @@ class LoadMongoCollection(APIView):
             page = int(request.data.get("page", 1))
             per_page = int(request.data.get("per_page", 5))
             sort = request.data.get("sort", "asc").strip()
-            filter = request.data.get("filter", None).strip()
-            filter = filter.replace("'", "\"")
-            try:
-                filter = json.loads(filter) if filter else None
-            except Exception:
-                return JsonResponse({"message": "In correct filter query. Please enter correct query!"}, status=400,
-                                    safe=False)
-            if filter and "_id" in filter:
+            filter_query = request.data.get("filter", "").strip().replace("'", "\"")
+            filter = json.loads(filter_query) if filter_query else {}
+
+            if "_id" in filter:
                 try:
                     filter["_id"] = ObjectId(filter["_id"])
                 except Exception as e:
-                    return JsonResponse({"message": "In correct filter query. " + str(e)}, status=400,
-                                        safe=False)
-            if filter and "id" in filter:
+                    return JsonResponse({"message": f"Invalid filter _id: {str(e)}"}, status=400)
+
+            if "id" in filter:
                 try:
                     filter["_id"] = ObjectId(filter["id"])
                     del filter["id"]
                 except Exception as e:
-                    return JsonResponse({"message": "In correct filter query. " + str(e)}, status=400,
-                                        safe=False)
-            if not filter or filter is None:
-                filter = {}
+                    return JsonResponse({"message": f"Invalid filter id: {str(e)}"}, status=400)
+
             offset = (page - 1) * per_page
-            config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            client = pymongo.MongoClient(host=config['mongo_path'])
-            mongodb = MongoDatabases()
-            databases = mongodb.get_all_databases()
-            # databases = client.list_database_names()
+            client = settings.MONGODB_CLIENT
+            database = client["datacube_"+ database_name]
 
-            for db_name in databases:
-                if db_name in ['config']:
-                    continue
-                
-                if database_name!=db_name:
-                    continue
+            if collection_name not in database.list_collection_names():
+                return JsonResponse({"message": f"Collection '{collection_name}' does not exist in '{database_name}'"}, status=404)
 
-                db = client[db_name]
-                if collection_name in mongodb.get_all_database_collections(db_name):
-                    collection = db[collection_name]
+            collection = database[collection_name]
 
-                    try:
-                        data = collection.find(filter).sort(
-                            [("_id", pymongo.ASCENDING if sort == "asc" else pymongo.DESCENDING)]).skip(
-                            offset).limit(per_page)
-                    except Exception:
-                        return JsonResponse({"message": "In correct filter query. Please enter correct query!"},
-                                            status=400,
-                                            safe=False)
-                    total = collection.count_documents(filter)
-                    list_cur = list(data)
-                    json_data = dumps(list_cur)
-                    context = {"json_data": json_data, "page": page, "per_page": per_page, "total": total}
+            try:
+                data = collection.find(filter).sort([("_id", pymongo.ASCENDING if sort == "asc" else pymongo.DESCENDING)]).skip(offset).limit(per_page)
+                total = collection.count_documents(filter)
+                list_cur = list(data)
+                json_data = dumps(list_cur)
+                context = {"json_data": json_data, "page": page, "per_page": per_page, "total": total}
+                return JsonResponse(context, status=200)
+            except Exception as e:
+                return JsonResponse({"message": f"Error retrieving data: {str(e)}"}, status=400)
 
-                    return JsonResponse(context, status=200, safe=False)
-
+        except ValueError as ve:
+            return JsonResponse({"message": f"Value error: {str(ve)}"}, status=400)
         except Exception as ex:
-            return JsonResponse({"message": "Something went wrong!"}, status=400, safe=False)
+            return JsonResponse({"message": "Something went wrong!"}, status=400)
 
 
 class ExportCluster(APIView):

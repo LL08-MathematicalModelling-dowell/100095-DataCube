@@ -29,7 +29,7 @@ class MongoDatabases:
 
     def get_all_database_collections(self, database):
         try:
-            dbc = self.cluster["dataqube_"+database]
+            dbc = self.cluster["datacube_"+database]
             cols = dbc.list_collection_names()
             return cols
         except Exception as e:

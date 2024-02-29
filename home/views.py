@@ -340,7 +340,7 @@ def settings_view(request):
                         coll.insert_one(final_data)
 
                     # Now create the database and collection in mongodb and insert data
-                    db = cluster["dataqube_"+str(database_name)]
+                    db = cluster["datacube_"+ str(database_name)]
                     coll = db[str(collection_name)]
 
                     if file:
@@ -355,22 +355,22 @@ def settings_view(request):
                                 coll.insert_one(row)
                     else:
                         coll.insert_one({"test": "test"})
-                else:
-                    mongodb = MongoDatabases()
-                    cluster = settings.MONGODB_CLIENT
-                    db = cluster["datacube_metadata"]
-                    coll = db['metadata_collection']
-                    databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
-                    databases = [x.get('database_name') for x in databases]
 
-                    collections = []
-                    for d in databases:
-                        try:
+                mongodb = MongoDatabases()
+                cluster = settings.MONGODB_CLIENT
+                db = cluster["datacube_metadata"]
+                coll = db['metadata_collection']
+                databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+                databases = [x.get('database_name') for x in databases]
 
-                            colls = mongodb.get_all_database_collections(d)
-                            collections.extend(colls)
-                        except Exception:
-                            continue
+                collections = []
+                for d in databases:
+                    try:
+
+                        colls = mongodb.get_all_database_collections(d)
+                        collections.extend(colls)
+                    except Exception:
+                        continue
 
                 context = {'page': 'DB Import File', 'segment': 'settings', 'is_admin': False,
                            'collections': collections,
