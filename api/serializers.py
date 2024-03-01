@@ -41,6 +41,7 @@ class InputPutSerializer(serializers.Serializer):
     operation = serializers.CharField(max_length=10)
     query = serializers.JSONField(required=False)
     update_data = serializers.JSONField(required=False)
+    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
 
 
 class InputDeleteSerializer(serializers.Serializer):
