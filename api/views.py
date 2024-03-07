@@ -196,6 +196,7 @@ class DataCrudView(APIView):
             query = data.get('query', {})
             update_data = data.get('update_data', {})
             api_key = data.get('api_key')
+            payment = data.get('payment', True)
 
             for key, value in query.items():
                 if key in ["id", "_id"]:
@@ -235,13 +236,14 @@ class DataCrudView(APIView):
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-            res = check_api_key(api_key)
+            if payment:
+                res = check_api_key(api_key)
 
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res,
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+                if res != "success":
+                    return Response(
+                        {"success": False, "message": res,
+                         "data": []},
+                        status=status.HTTP_404_NOT_FOUND)
 
             # start_time = time.time()
             result = new_collection.update_many(query, {"$set": update_data})
