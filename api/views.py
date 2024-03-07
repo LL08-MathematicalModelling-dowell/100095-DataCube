@@ -629,3 +629,17 @@ class AddCollection(APIView):
         except Exception as e:
             return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class StatusCheck(APIView):
+    def get(self, request, *args, **kwargs):
+        url = 'https://datacube.uxlivinglab.online/'
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                return Response({"success": True, "message": f"{url}: Service is UP..!!"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"success": False, "message": f"{url}: Service is DOWN.", "data": []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception as e:
+            return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
