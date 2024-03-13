@@ -658,7 +658,7 @@ class AddDatabase(APIView):
                     cluster = settings.MONGODB_CLIENT
                     db = cluster["datacube_metadata"]
                     coll = db['metadata_collection']
-
+                    
                     final_data = {
                         "api_key": str(validated_data.get('api_key')),
                         "number_of_collections": int(validated_data.get('num_collections')),
@@ -679,6 +679,7 @@ class AddDatabase(APIView):
                         return Response(
                             {"success": True, "message": "Database added successfully!", "data": []},
                             status=status.HTTP_200_OK)
+                                  
                 else:
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             else:
