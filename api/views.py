@@ -681,8 +681,8 @@ class AddDatabase(APIView):
                             status=status.HTTP_200_OK)
                                   
                 else:
-                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                    return Response( { "success": False, "message": serializer.errors, "data": [] }, status=status.HTTP_400_BAD_REQUEST )
             else:
-                return Response({'error': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                return Response( { "success": False, "error": 'Method not allowed' }, status=status.HTTP_405_METHOD_NOT_ALLOWED )
         except Exception as e:
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)

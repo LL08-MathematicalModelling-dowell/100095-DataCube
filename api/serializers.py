@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from django.core.validators import MaxValueValidator
 
 class InputGetSerializer(serializers.Serializer):
     operations = [
@@ -86,12 +86,12 @@ class AddDatabasePOSTSerializer(serializers.Serializer):
     api_key = serializers.CharField(max_length=510, required=True)
     username = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
     db_name = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
-    num_collections = serializers.IntegerField(required=True)
-    num_documents = serializers.IntegerField(required=True)
-    num_fields = serializers.IntegerField(required=True)
+    num_collections = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
+    num_documents = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
+    num_fields = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
     field_labels = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
-    coll_names = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpacesValidator()]) # Removed NoSpecialCharsValidator since we're not splitting
-    session_id = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
+    coll_names = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
+    session_id = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpacesValidator()])
 
     def validate_field_labels(self, value):
         labels = value.split(',')
