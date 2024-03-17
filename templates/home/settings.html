@@ -41,7 +41,7 @@
                                 enctype="multipart/form-data" onsubmit="return validateForm()">
                                 {% csrf_token %}
                                 <div class="form-group">
-                                    <select id="select-databases" name="databaseName" class="form-select form-select-lg mr-3 branch_s"
+                                    <select id="select-databases" name="databaseName" class="form-select form-select-lg mr-3 branch_s border border-dark"
                                         style="background-color: white; color: black;" required>
                                         <option value="" selected disabled>Select Database</option>
                                         {% for db in databases %}
@@ -52,7 +52,7 @@
                                 <br>
                                 <div class="form-group">
                                     <div>
-                                        <select id="select-collections" name="colName" class="form-select form-select-lg mr-3 branch_s"
+                                        <select id="select-collections" name="colName" class="form-select form-select-lg mr-3 branch_s border border-dark"
                                             style="background-color: white; color: black;" required>
                                             <option value="" selected disabled>Select Collection</option>
                                         </select>
