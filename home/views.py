@@ -130,9 +130,16 @@ def metadata_view(request):
                     }
 
                     database = coll.find_one({"database_name": str(request.POST.get('databaseName'))})
+                    
+                    region_url = "https://100074.pythonanywhere.com/get-countries-v3/"
+                    region_list_response = requests.post(region_url)
+                    region_list_data = json.loads(region_list_response.content.decode("utf-8"))
+
+                    region_list = region_list_data['data'][0]['countries']
+                    
                     if database:
                         context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False,
-                                   'error_message': 'Database with the same name already exists!'}
+                                   'error_message': 'Database with the same name already exists!', 'regions': region_list}
                         html_template = loader.get_template('home/metadata.html')
                         return HttpResponse(html_template.render(context, request))
                     else:
