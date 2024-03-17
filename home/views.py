@@ -332,10 +332,11 @@ def settings_view(request):
 
                     for record in metadata_records:
                         collection_names = record['collection_names']
+                        field_labels = record['field_labels']
 
                     final_data = {
                         "database_name": database_name,
-                        "collection_name": collection_name,
+                        # "collection_name": collection_name,
                         "collection_names": collection_names,
                         "number_of_collections": len(collection_names),
                         "number_of_documents": 1,
