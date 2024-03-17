@@ -29,8 +29,14 @@ def index(request):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
+            region_url = "https://100074.pythonanywhere.com/get-countries-v3/"
+            region_list_response = requests.post(region_url)
+            region_list_data = json.loads(region_list_response.content.decode("utf-8"))
+            
+            region_list = region_list_data['data'][0]['countries']
+            
             if user.get("userinfo", {}).get("username"):
-                context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False}
+                context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False, 'regions': region_list}
                 html_template = loader.get_template('home/metadata.html')
                 return HttpResponse(html_template.render(context, request))
             else:
@@ -118,9 +124,11 @@ def metadata_view(request):
                         "number_of_fields": int(request.POST.get('numFields')),
                         "field_labels": request.POST.get('fieldLabels').split(','),
                         "collection_names": request.POST.get('colNames').split(','),
+                        "region": str(request.POST.get('selected_region')),
                         "added_by": user.get("userinfo", {}).get("username"),
                         "session_id": request.session.get("session_id"),
                     }
+
                     database = coll.find_one({"database_name": str(request.POST.get('databaseName'))})
                     if database:
                         context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False,
