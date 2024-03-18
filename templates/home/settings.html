@@ -1,8 +1,8 @@
 {% extends "layouts/base.html" %}
-
 {% load static %}
 
 {% block title %} - Settings {% endblock title %}
+
 {% block stylesheets %}
 <!-- Styles go here -->
 {% endblock %}
@@ -38,7 +38,7 @@
                         <div class="col-md-4"></div>
                         <div class="col-md-4">
                             <form id="meta-form" action="{% url 'home:settings' %}" method="post"
-                                enctype="multipart/form-data" onsubmit="return validateForm()">
+                                enctype="multipart/form-data">
                                 {% csrf_token %}
                                 <div class="form-group">
                                     <select id="select-databases" name="databaseName" class="form-select form-select-lg mr-3 branch_s border border-dark"
@@ -51,15 +51,12 @@
                                 </div>
                                 <br>
                                 <div class="form-group">
-                                    <div>
-                                        <select id="select-collections" name="colName" class="form-select form-select-lg mr-3 branch_s border border-dark"
-                                            style="background-color: white; color: black;" required>
-                                            <option value="" selected disabled>Select Collection</option>
-                                        </select>
-                                    </div>
+                                    <select id="select-collections" name="colName" class="form-select form-select-lg mr-3 branch_s border border-dark"
+                                        style="background-color: white; color: black;" required>
+                                        <option value="" selected disabled>Select Collection</option>
+                                    </select>
                                 </div>
                                 <br>
-
                                 <div class="form-group">
                                     <label for="fileToImport">
                                         <h6>File to Import <span style="color: red;">*</span>:</h6>
@@ -75,24 +72,7 @@
                                 </div>
                                 <br>
                             </form>
-
                         </div>
-
-                        <script>
-                            function validateForm() {
-                                var fileInput = document.getElementById("fileToImport");
-                                var errorDiv = document.getElementById("metaError");
-
-                                if (!fileInput.value) {
-                                    errorDiv.textContent = "Please select a file.";
-                                    return false; // Prevent form submission
-                                } else {
-                                    errorDiv.textContent = ""; // Clear any previous error message
-                                    return true; // Allow form submission
-                                }
-                            }
-                        </script>
-
                         <div class="col-md-4"></div>
                     </div>
                 </div>
@@ -103,14 +83,61 @@
 
 <script>
     $(document).ready(function () {
+        $('#meta-form').submit(function (event) {
+            event.preventDefault(); // Prevent default form submission
+            
+            var formData = new FormData(this);
+            var fileInput = formData.get("fileToImport");
+            var errorDiv = document.getElementById("metaError");
+
+            if (!fileInput) {
+                errorDiv.textContent = "Please select a file.";
+                return false; // Prevent form submission
+            } else {
+                errorDiv.textContent = ""; // Clear any previous error message
+
+                // Submit the form using AJAX
+                _preloader('show');
+                $.ajax({
+                    url: $(this).attr('action'),
+                    method: $(this).attr('method'),
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        // Display success message
+                        swal({
+                            title: "Success!",
+                            text: 'Documents Saved successfully!',
+                            type: "success",
+                            timer: 9000,
+                            onClose: function() {
+                                // Clear form fields after success
+                                $('#meta-form')[0].reset();
+                                // Set default selection for collection dropdown
+                                $('#select-collections').html('<option value="" selected disabled>Select Collection</option>');
+                            }
+                        });
+                        _preloader('hide');
+                    },
+                    error: function (data) {
+                        // Display error message
+                        swal({title: "Error!", text: 'Something went wrong!', type: "error", timer: 9000});
+                        _preloader('hide');
+                    }
+                });
+                return false; // Prevent form submission until user confirms
+            }
+        });
+
         $('#select-databases').on('change', function () {
             $('#fileToImport').focus();
             let db = $(this).val();
             getCollectionsDataView('{{ csrf_token }}', db);
-            
-        })
+        });
     });
 </script>
+
 {% endblock content %}
 
 {% block javascript %}
