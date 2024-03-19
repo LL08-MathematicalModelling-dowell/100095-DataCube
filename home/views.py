@@ -29,14 +29,28 @@ def index(request):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
+            
+            cluster = settings.MONGODB_CLIENT
+            db = cluster["datacube_metadata"]
+            coll = db['region_collection']
+            db_region_list = coll.distinct("country")
+
             region_url = "https://100074.pythonanywhere.com/get-countries-v3/"
             region_list_response = requests.post(region_url)
             region_list_data = json.loads(region_list_response.content.decode("utf-8"))
-            
+
             region_list = region_list_data['data'][0]['countries']
-            
+
+            final_region_list = []
+            for db_region in db_region_list:
+                if db_region.lower() in [region.lower() for region in region_list]:
+                    final_region_list.append(db_region.lower())
+
+            if 'india' not in final_region_list:
+                final_region_list.append('india')
+                
             if user.get("userinfo", {}).get("username"):
-                context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False, 'regions': region_list}
+                context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False, 'regions': final_region_list}
                 html_template = loader.get_template('home/metadata.html')
                 return HttpResponse(html_template.render(context, request))
             else:
@@ -141,13 +155,26 @@ def metadata_view(request):
 
                     return redirect(f"{settings.MY_BASE_URL}/retrieve_metadata/")
                 
+                cluster = settings.MONGODB_CLIENT
+                db = cluster["datacube_metadata"]
+                coll = db['region_collection']
+                db_region_list = coll.distinct("country")
+
                 region_url = "https://100074.pythonanywhere.com/get-countries-v3/"
                 region_list_response = requests.post(region_url)
                 region_list_data = json.loads(region_list_response.content.decode("utf-8"))
 
                 region_list = region_list_data['data'][0]['countries']
 
-                context = {'page': 'Add Metadata', 'segment': 'metadata', 'is_admin': False, 'regions': region_list}
+                final_region_list = []
+                for db_region in db_region_list:
+                    if db_region.lower() in [region.lower() for region in region_list]:
+                        final_region_list.append(db_region.lower())
+
+                if 'india' not in final_region_list:
+                    final_region_list.append('india')
+
+                context = {'page': 'Add Metadata', 'segment': 'metadata', 'is_admin': False, 'regions': final_region_list}
                 html_template = loader.get_template('home/metadata.html')
                 return HttpResponse(html_template.render(context, request))
             else:
