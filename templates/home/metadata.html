@@ -166,7 +166,7 @@
                                             style="background-color: white; color: black;" required>
                                         {% comment %} <option value="" disabled>Select Region</option> {% endcomment %}
                                         {% for region in regions %}
-                                            <option value="{{ region }}" {% if region == 'india' %} selected {% endif %}>{{ region }}</option>
+                                            <option value="{{ region.id }}" {% if region == 'india' %} selected {% endif %}>{{ region.country }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
