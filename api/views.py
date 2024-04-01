@@ -662,16 +662,17 @@ class AddDatabase(APIView):
                     final_data = {
                         "api_key": str(validated_data.get('api_key')),
                         "number_of_collections": int(validated_data.get('num_collections')),
-                        "database_name": str(validated_data.get('db_name')),
+                        "database_name": str(validated_data.get('db_name').lower()),
                         "number_of_documents": int(validated_data.get('num_documents')),
                         "number_of_fields": int(validated_data.get('num_fields')),
                         "field_labels": validated_data.get('field_labels'),
                         "collection_names": validated_data.get('coll_names'),
+                        "region_id": validated_data.get('region_id'),
                         "added_by": username,
                         "session_id": validated_data.get('session_id'),
                     }
 
-                    database = coll.find_one({"database_name": str(validated_data.get('db_name'))})
+                    database = coll.find_one({"database_name": str(validated_data.get('db_name').lower())})
                     if database:
                         return Response({'error': 'Database with the same name already exists!'}, status=status.HTTP_400_BAD_REQUEST)
                     else:

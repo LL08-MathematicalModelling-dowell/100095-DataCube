@@ -92,6 +92,7 @@ class AddDatabasePOSTSerializer(serializers.Serializer):
     field_labels = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
     coll_names = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
     session_id = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpacesValidator()])
+    region_id = serializers.CharField(max_length=510, default='')
 
     def validate_field_labels(self, value):
         labels = value.split(',')
