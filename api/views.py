@@ -426,7 +426,7 @@ class GetDataView(APIView):
             offset = int(data.get('offset')) if 'offset' in data else None
             payment = data.get('payment', True)
             for key, value in filters.items():
-                if key in ["id", "_id"]:
+                if key == "_id":
                     try:
                         filters[key] = ObjectId(value)
                     except Exception as ex:
