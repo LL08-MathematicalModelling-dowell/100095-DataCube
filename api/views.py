@@ -19,6 +19,8 @@ import re
 import time
 from pymongo import MongoClient
 
+from rest_framework.exceptions import ValidationError
+
 @method_decorator(csrf_exempt, name='dispatch')
 class DataCrudView(APIView):
     def get(self, request, *args, **kwargs):
@@ -424,7 +426,7 @@ class GetDataView(APIView):
             offset = int(data.get('offset')) if 'offset' in data else None
             payment = data.get('payment', True)
             for key, value in filters.items():
-                if key in ["id", "_id"]:
+                if key == "_id":
                     try:
                         filters[key] = ObjectId(value)
                     except Exception as ex:
@@ -631,3 +633,57 @@ class AddCollection(APIView):
         except Exception as e:
             return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddDatabase(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            if request.method == 'POST':
+                serializer = AddDatabasePOSTSerializer(data=request.data)
+                if serializer.is_valid():
+                    validated_data = serializer.validated_data
+                    username = validated_data.get('username')
+                    api_key = validated_data.get('api_key')
+                    
+                    res = check_api_key(api_key)
+                    if res != "success":
+                        return Response(
+                            {"success": False, "message": res,
+                            "data": []},
+                            status=status.HTTP_404_NOT_FOUND)
+                    if not username:
+                        return Response({'error': 'Username is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+                    cluster = settings.MONGODB_CLIENT
+                    db = cluster["datacube_metadata"]
+                    coll = db['metadata_collection']
+                    
+                    final_data = {
+                        "api_key": str(validated_data.get('api_key')),
+                        "number_of_collections": int(validated_data.get('num_collections')),
+                        "database_name": str(validated_data.get('db_name').lower()),
+                        "number_of_documents": int(validated_data.get('num_documents')),
+                        "number_of_fields": int(validated_data.get('num_fields')),
+                        "field_labels": validated_data.get('field_labels'),
+                        "collection_names": validated_data.get('coll_names'),
+                        "region_id": validated_data.get('region_id'),
+                        "added_by": username,
+                        "session_id": validated_data.get('session_id'),
+                    }
+
+                    database = coll.find_one({"database_name": str(validated_data.get('db_name').lower())})
+                    if database:
+                        return Response({'error': 'Database with the same name already exists!'}, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        coll.insert_one(final_data)
+                        return Response(
+                            {"success": True, "message": "Database added successfully!", "data": []},
+                            status=status.HTTP_200_OK)
+                                  
+                else:
+                    return Response( { "success": False, "message": serializer.errors, "data": [] }, status=status.HTTP_400_BAD_REQUEST )
+            else:
+                return Response( { "success": False, "error": 'Method not allowed' }, status=status.HTTP_405_METHOD_NOT_ALLOWED )
+        except Exception as e:
+            return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)

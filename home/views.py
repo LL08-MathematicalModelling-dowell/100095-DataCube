@@ -136,7 +136,7 @@ def metadata_view(request):
 
                     final_data = {
                         "number_of_collections": int(request.POST.get('numCollections')),
-                        "database_name": str(request.POST.get('databaseName')),
+                        "database_name": str(request.POST.get('databaseName').lower()),
                         "number_of_documents": int(request.POST.get('numDocuments')),
                         "number_of_fields": int(request.POST.get('numFields')),
                         "field_labels": request.POST.get('fieldLabels').split(','),
@@ -146,17 +146,23 @@ def metadata_view(request):
                         "session_id": request.session.get("session_id"),
                     }
 
-                    database = coll.find_one({"database_name": str(request.POST.get('databaseName'))})
+                    database = coll.find_one({"database_name": str(request.POST.get('databaseName').lower())})
+                    
+                    coll_region = db['region_collection']
+                    db_region_list = coll_region.find({"is_active": True})
+                    region_list = []
+                    for i in db_region_list:
+                        region_list.append({"country": i["country"], "id": str(i["_id"])})
                     
                     if database:
-                        context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False,
+                        context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False, 'regions': region_list,
                                    'error_message': 'Database with the same name already exists!'}
                         html_template = loader.get_template('home/metadata.html')
                         return HttpResponse(html_template.render(context, request))
                     else:
                         coll.insert_one(final_data)
 
-                    return redirect(f"{settings.MY_BASE_URL}/retrieve_metadata/")
+                    return redirect(f"{settings.MY_BASE_URL}retrieve_metadata/")
                 
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
@@ -215,7 +221,7 @@ def retrieve_metadata(request):
                     records.append({
 
                         'collection_names': ', '.join(record.get('collection_names', [])),
-                        'database_name': record.get('database_name', ''),
+                        'database_name': record.get('database_name', '').lower(),
                         'number_of_collections': record.get('number_of_collections', 0),  # Add this line
                         'number_of_documents': record.get('number_of_documents', 0),  # Add this line
                         'number_of_fields': record.get('number_of_fields', 0),
@@ -355,7 +361,7 @@ def settings_view(request):
                     db = cluster["datacube_metadata"]
                     coll = db['metadata_collection']
 
-                    database_name = request.POST.get('databaseName')
+                    database_name = request.POST.get('databaseName').lower()
                     collection_name = request.POST.get('colName')
                     field_labels = []
                     file = request.FILES.get('fileToImport')
@@ -382,7 +388,7 @@ def settings_view(request):
                     database = coll.find_one({"database_name": database_name})
                     if database:
                         coll.update_one(
-                            {"database_name": str(request.POST.get('databaseName'))},
+                            {"database_name": str(request.POST.get('databaseName').lower())},
                             {"$set": final_data}
                         )
                     else:
