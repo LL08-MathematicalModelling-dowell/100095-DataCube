@@ -370,3 +370,83 @@ print(response.text)
 
 ```
 This documentation provides a comprehensive guide on how to interact with the Dowell Data Cube API, including fetching data, inserting, updating, and deleting records. Please ensure you have the necessary API key and valid data to perform these operations successfully.
+```
+#### UploadCSVFile API
+
+
+
+This API endpoint allows you to upload a CSV file to a specified database and collection.
+
+## Endpoint
+
+```
+POST https://datacube.uxlivinglab.online/db_api/upload_csv/
+```
+
+## Request Headers
+
+- Content-Type: multipart/form-data
+
+## Request Body
+
+- db_name: (string) The name of the database.
+- coll_name: (string) The name of the collection.
+- api_key: (string) API key for authentication.
+- username: (string) User's username.
+- session_id: (string) Session ID.
+- region_id: (string) Region ID.
+- fileToImport: (file) The CSV file to be uploaded.
+
+## Example
+
+#### Request Data / API Payload
+
+```json
+{
+    "db_name": "example_db",
+    "coll_name": "example_collection",
+    "api_key": "your_api_key",
+    "username": "username",
+    "session_id": "your session_id",
+    "region_id": "your region_id",
+    "fileToImport": "Select CSV File"
+}
+```
+```json
+{
+    "success": true,
+    "message": "CSV file uploaded successfully."
+}
+```
+## If Not CSV File
+```json
+{
+    "success": false,
+    "message": "Unsupported file format."
+}
+```
+### Python Code Example
+
+```python
+import requests
+
+url = "https://datacube.uxlivinglab.online/db_api/upload_csv/"
+files = {'fileToImport': open('example.csv', 'rb')}
+data = {
+    'db_name': 'example_db',
+    'coll_name': 'example_collection',
+    'api_key': 'your_api_key',
+    'username': 'username',
+    'session_id': 'your session_id',
+    'region_id': 'your region_id'
+}
+
+response = requests.post(url, files=files, data=data)
+print(response.json())
+```
+Response
+```json
+{
+    "success": true,
+    "message": "CSV file uploaded successfully."
+}

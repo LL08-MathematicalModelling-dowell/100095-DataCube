@@ -1,3 +1,4 @@
+import csv
 import traceback
 import pymongo
 from bson import ObjectId
@@ -7,7 +8,6 @@ from rest_framework import status
 from rest_framework.views import APIView
 from pathlib import Path
 from django.conf import settings
-
 from dbdetails.script import MongoDatabases
 from .serializers import *
 import json
@@ -18,8 +18,10 @@ from django.views.decorators.csrf import csrf_exempt
 import re
 import time
 from pymongo import MongoClient
-
 from rest_framework.exceptions import ValidationError
+from django.conf import settings
+from django.http import JsonResponse
+from rest_framework.parsers import MultiPartParser
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DataCrudView(APIView):
@@ -662,7 +664,7 @@ class AddDatabase(APIView):
                     final_data = {
                         "api_key": str(validated_data.get('api_key')),
                         "number_of_collections": int(validated_data.get('num_collections')),
-                        "database_name": str(validated_data.get('db_name').lower()),
+                        "database_name": str(validated_data.get('db_name')),
                         "number_of_documents": int(validated_data.get('num_documents')),
                         "number_of_fields": int(validated_data.get('num_fields')),
                         "field_labels": validated_data.get('field_labels'),
@@ -672,7 +674,7 @@ class AddDatabase(APIView):
                         "session_id": validated_data.get('session_id'),
                     }
 
-                    database = coll.find_one({"database_name": str(validated_data.get('db_name').lower())})
+                    database = coll.find_one({"database_name": str(validated_data.get('db_name'))})
                     if database:
                         return Response({'error': 'Database with the same name already exists!'}, status=status.HTTP_400_BAD_REQUEST)
                     else:
@@ -687,3 +689,85 @@ class AddDatabase(APIView):
                 return Response( { "success": False, "error": 'Method not allowed' }, status=status.HTTP_405_METHOD_NOT_ALLOWED )
         except Exception as e:
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UploadCSVFile(APIView):
+    parser_classes = [MultiPartParser]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            serializer = UploadCSVPOSTSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            data = serializer.validated_data
+            database_name = data.get('db_name')
+            collection_name = data.get('coll_name')
+            api_key = data.get('api_key')
+
+            mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database_name})
+
+            if not mongo_db:
+                return JsonResponse({"success": False, "message": f"Database '{database_name}' does not exist in Datacube", "data": []}, status=status.HTTP_404_NOT_FOUND)
+            
+
+            res = check_api_key(api_key)
+            if res != "success":
+                return Response(
+                    {"success": False, "message": res,
+                        "data": []},
+                    status=status.HTTP_404_NOT_FOUND)
+
+            cluster = settings.MONGODB_CLIENT
+            db = cluster["datacube_metadata"]
+            coll = db['metadata_collection']
+
+            metadata_record = coll.find_one({"database_name": database_name})
+
+            if metadata_record:
+                collection_names = metadata_record['collection_names']
+                field_labels = metadata_record['field_labels']
+            else:
+                collection_names = []
+                field_labels = []
+
+            final_data = {
+                "database_name": database_name,
+                "collection_names": collection_names,
+                "number_of_collections": len(collection_names),
+                "number_of_documents": 1,
+                "field_labels": field_labels,
+                "number_of_fields": len(field_labels),
+                "region_id": data.get('region_id'),
+                "added_by": data.get('username'),
+                "session_id": data.get('session_id'),
+            }
+
+
+            coll.replace_one({"database_name": database_name}, final_data, upsert=True)
+
+            db = cluster["datacube_" + database_name]
+            coll = db[collection_name]
+
+            file = request.FILES.get('fileToImport')
+
+            if file:
+                if file.name.endswith('.json'):
+                    # json_data = json.loads(file.read().decode('utf-8'))
+                    # for item in json_data:
+                    #     coll.insert_one(item)
+                    # return JsonResponse({'success': True, 'message': 'JSON file uploaded successfully.'})
+                    return JsonResponse({'success': False, 'message': 'Unsupported file format.'}, status=status.HTTP_400_BAD_REQUEST)
+                elif file.name.endswith('.csv'):
+                    csv_reader = csv.DictReader(file.read().decode('utf-8').splitlines())
+                    for row in csv_reader:
+                        coll.insert_one(row)
+                    return JsonResponse({'success': True, 'message': 'CSV file uploaded successfully.'})
+                else:
+                    return JsonResponse({'success': False, 'message': 'Unsupported file format.'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                coll.insert_one({"test": "test"})
+                return JsonResponse({'success': True, 'message': 'No file provided.'})
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
