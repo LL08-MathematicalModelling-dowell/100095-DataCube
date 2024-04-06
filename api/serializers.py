@@ -106,3 +106,12 @@ class AddDatabasePOSTSerializer(serializers.Serializer):
         if not any(name.strip() for name in names):
             raise serializers.ValidationError("At least one name is required.")
         return names
+
+
+class UploadCSVPOSTSerializer(serializers.Serializer):
+    db_name = serializers.CharField(max_length=100)
+    coll_name = serializers.CharField(max_length=100)
+    api_key = serializers.CharField(max_length=510, required=True)
+    username = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
+    session_id = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpacesValidator()])
+    region_id = serializers.CharField(max_length=510, default='')
