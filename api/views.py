@@ -29,7 +29,7 @@ class DataCrudView(APIView):
             serializer.is_valid(raise_exception=True)
 
             data = serializer.validated_data
-            database = data.get('db_name')
+            database = data.get('db_name').lower()
             coll = data.get('coll_name')
             operation = data.get('operation')
             api_key = data.get('api_key')
@@ -53,7 +53,7 @@ class DataCrudView(APIView):
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
+                    {"success": False, "message": f"Database '{data.get('db_name')}' does not exist in Datacube",
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
@@ -112,7 +112,7 @@ class DataCrudView(APIView):
             serializer.is_valid(raise_exception=True)
 
             data = serializer.validated_data
-            database = data.get('db_name')
+            database = data.get('db_name').lower()
             coll = data.get('coll_name')
             operation = data.get('operation')
             data_to_insert = data.get('data', {})
@@ -129,7 +129,7 @@ class DataCrudView(APIView):
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
+                    {"success": False, "message": f"Database '{data.get('db_name')}' does not exist in Datacube",
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
@@ -192,7 +192,7 @@ class DataCrudView(APIView):
             serializer.is_valid(raise_exception=True)
 
             data = serializer.validated_data
-            database = data.get('db_name')
+            database = data.get('db_name').lower()
             coll = data.get('coll_name')
             operation = data.get('operation')
             query = data.get('query', {})
@@ -217,7 +217,7 @@ class DataCrudView(APIView):
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
+                    {"success": False, "message": f"Database '{data.get('db_name')}' does not exist in Datacube",
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
@@ -267,7 +267,7 @@ class DataCrudView(APIView):
             serializer.is_valid(raise_exception=True)
 
             data = serializer.validated_data
-            database = data.get('db_name')
+            database = data.get('db_name').lower()
             coll = data.get('coll_name')
             operation = data.get('operation')
             query = data.get('query', {})
@@ -290,7 +290,7 @@ class DataCrudView(APIView):
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
+                    {"success": False, "message": f"Database '{data.get('db_name')}' does not exist in Datacube",
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
@@ -333,7 +333,7 @@ class DataCrudView(APIView):
 class GetDataView(APIView):
     def get(self, request, *args, **kwargs):
         try:
-            database = request.GET.get('db_name')
+            database = request.GET.get('db_name').lower()
             coll = request.GET.get('coll_name')
             operation = request.GET.get('operation')
             api_key = request.GET.get('api_key')
@@ -362,7 +362,7 @@ class GetDataView(APIView):
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
+                    {"success": False, "message": f"Database '{request.GET.get('db_name')}' does not exist in Datacube",
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
@@ -417,7 +417,7 @@ class GetDataView(APIView):
             serializer.is_valid(raise_exception=True)
 
             data = serializer.validated_data
-            database = data.get('db_name')
+            database = data.get('db_name').lower()
             coll = data.get('coll_name')
             operation = data.get('operation')
             api_key = data.get('api_key')
@@ -443,7 +443,7 @@ class GetDataView(APIView):
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
+                    {"success": False, "message": f"Database '{data.get('db_name')}' does not exist in Datacube",
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
@@ -503,7 +503,7 @@ class CollectionView(APIView):
             serializer.is_valid(raise_exception=True)
 
             data = serializer.validated_data
-            database = data.get('db_name')
+            database = data.get('db_name').lower()
             api_key = data.get('api_key')
             payment = data.get('payment', True)
 
@@ -521,7 +521,7 @@ class CollectionView(APIView):
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube", "data": []},
+                    {"success": False, "message": f"Database '{data.get('db_name')}' does not exist in Datacube", "data": []},
                     status=status.HTTP_404_NOT_FOUND)
             
             cluster = settings.MONGODB_CLIENT
@@ -552,14 +552,14 @@ class AddCollection(APIView):
             serializer.is_valid(raise_exception=True)
 
             data = serializer.validated_data
-            database = data.get('db_name')
+            database = data.get('db_name').lower()
             coll_names = data.get('coll_names')
             api_key = data.get('api_key')
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
 
             if not mongoDb:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
+                    {"success": False, "message": f"Database '{data.get('db_name')}' does not exist in Datacube",
                      "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
@@ -584,7 +584,7 @@ class AddCollection(APIView):
             }
 
             # Check if the provided 'dbname' exists in the 'database_name' field
-            collections = settings.METADATA_COLLECTION.find_one({"database_name": database})
+            collections = settings.METADATA_COLLECTION.find_one({"database_name": data.get('db_name')})
 
             if collections:
                 # Append collections to the existing 'metadata_collection' document
@@ -595,7 +595,7 @@ class AddCollection(APIView):
                     if new_collection_name in existing_collections:
                         return Response(
                             {"success": False,
-                             "message": f"Collection `{new_collection_name}` already exists in Database '{database}'",
+                             "message": f"Collection `{new_collection_name}` already exists in Database '{data.get('db_name')}'",
                              "data": []},
                             status=status.HTTP_409_CONFLICT)
 
