@@ -121,31 +121,22 @@ class DataCrudView(APIView):
 
             cluster = settings.MONGODB_CLIENT
 
-
-            # start_time = time.time()
+            # Fetch metadata for the specified database and collection dynamically
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            # end_time = time.time()
-            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
 
             if not mongoDb:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            # start_time = time.time()
-            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            # end_time = time.time()
-            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
+            mongodb_coll = settings.METADATA_COLLECTION.find_one({"database_name": database, "collection_names": {"$in": [coll]}})
 
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
-
-            new_db = cluster["datacube_" + database]
-            new_collection = new_db[coll]
 
             if operation not in ["insert"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
@@ -157,26 +148,66 @@ class DataCrudView(APIView):
                 if res != "success":
                     return Response(
                         {"success": False, "message": res,
-                         "data": []},
+                        "data": []},
                         status=status.HTTP_404_NOT_FOUND)
 
+            # Check criteria before inserting data
             if operation == "insert":
-                total_documents = new_collection.count_documents({})
-                if total_documents >= 10000:
+
+                # Check if database name matches
+                if mongoDb.get('database_name') != database:
                     return Response(
-                        {"success": False,
-                         "message": f"Sorry, You can add maximum 10,000 documents inside {coll} collection.",
-                         "data": []},
+                        {"success": False, "message": f"Database name mismatch. Expected: '{mongoDb.get('database_name')}', Got: '{database}'",
+                        "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
-                else:
-                    # start_time = time.time()
-                    inserted_data = new_collection.insert_one(data_to_insert)
-                    # end_time = time.time()
-                    # print(f"inserted_data operation took: {measure_execution_time(start_time, end_time)} seconds for insert")
+                    
+                # Check for name of collection exact match with existing collection name
+                if coll not in mongoDb.get('collection_names'):
+                    return Response(
+                        {"success": False, "message": f"Collection name '{coll}' not found in '{database}'",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                # Calculate the number of fields in the data to be inserted
+                field_count = len(data_to_insert)
+
+                # Check if number of documents is greater than the existing
+                new_db = cluster["datacube_" + database]
+                new_collection = new_db[coll]
+
+                existing_document_count = new_collection.count_documents({})
+                max_document_count = mongoDb.get('number_of_documents')
+
+                if existing_document_count + 1 > max_document_count:
+                    return Response(
+                        {"success": False, "message": f"Maximum number of documents reached in '{coll}' collection",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                # Check if field labels match
+                field_labels = mongodb_coll.get('field_labels', [])
+                if set(data_to_insert.keys()) != set(field_labels):
+                    return Response(
+                        {"success": False, "message": f"Field labels mismatch. Expected: '{', '.join(field_labels)}', Got: '{', '.join(data_to_insert.keys())}'",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                # Check if number of fields is greater than the existing
+                if field_count > mongodb_coll.get('number_of_fields', 0):
+                    return Response(
+                        {"success": False, "message": f"Maximum number of fields is {mongodb_coll.get('number_of_fields', 0)} but Got: {field_count}",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+            # Insert data
+            new_db = cluster["datacube_" + database]
+            new_collection = new_db[coll]
+
+            inserted_data = new_collection.insert_one(data_to_insert)
 
             return Response(
                 {"success": True, "message": "Data inserted successfully!",
-                 "data": {"inserted_id": str(inserted_data.inserted_id)}},
+                "data": {"inserted_id": str(inserted_data.inserted_id)}},
                 status=status.HTTP_201_CREATED)
         except ValidationError as ve:
             return Response({"success": False, "message": str(ve), "data": []},
@@ -210,25 +241,20 @@ class DataCrudView(APIView):
 
             cluster = settings.MONGODB_CLIENT
 
-            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            # end_time = time.time()
-            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
 
             if not mongoDb:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            # start_time = time.time()
-            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            # end_time = time.time()
-            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
+            mongodb_coll = settings.METADATA_COLLECTION.find_one({"database_name": database, "collection_names": {"$in": [coll]}})
+
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
             new_db = cluster["datacube_" + database]
@@ -244,17 +270,44 @@ class DataCrudView(APIView):
                 if res != "success":
                     return Response(
                         {"success": False, "message": res,
-                         "data": []},
+                        "data": []},
                         status=status.HTTP_404_NOT_FOUND)
 
-            # start_time = time.time()
+            # Check criteria before updating data
+            if operation == "update":
+
+                # Check if number of documents is greater than the existing
+                existing_document_count = new_collection.count_documents(query)
+                max_document_count = mongoDb.get('number_of_documents')
+
+                if existing_document_count > max_document_count:
+                    return Response(
+                        {"success": False, "message": f"Maximum number of documents reached in '{coll}' collection",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                # Check if field labels match
+                field_labels = mongodb_coll.get('field_labels', [])
+                if set(update_data.keys()) != set(field_labels):
+                    return Response(
+                        {"success": False, "message": f"Field labels mismatch. Expected: '{', '.join(field_labels)}', Got: '{', '.join(update_data.keys())}'",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                # Check if number of fields is greater than the existing
+                field_count = len(update_data)
+                if field_count > mongodb_coll.get('number_of_fields', 0):
+                    return Response(
+                        {"success": False, "message": f"Maximum number of fields is {mongodb_coll.get('number_of_fields', 0)} but Got: {field_count}",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+            # Perform the update operation
             result = new_collection.update_many(query, {"$set": update_data})
-            # end_time = time.time()
-            # print(f"update_many operation took: {measure_execution_time(start_time, end_time)} seconds..")
 
             return Response(
                 {"success": True, "message": f"{result.modified_count} documents updated successfully!",
-                 "data": []},
+                "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
             traceback.print_exc()
