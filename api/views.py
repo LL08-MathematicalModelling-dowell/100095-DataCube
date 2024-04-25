@@ -120,8 +120,6 @@ class DataCrudView(APIView):
             payment = data.get('payment', True)
 
             cluster = settings.MONGODB_CLIENT
-
-            # Fetch metadata for the specified database and collection dynamically
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
 
             if not mongoDb:
@@ -153,7 +151,7 @@ class DataCrudView(APIView):
 
             # Check criteria before inserting data
             if operation == "insert":
-
+                
                 # Check if database name matches
                 if mongoDb.get('database_name') != database:
                     return Response(
@@ -168,9 +166,6 @@ class DataCrudView(APIView):
                         "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
 
-                # Calculate the number of fields in the data to be inserted
-                field_count = len(data_to_insert)
-
                 # Check if number of documents is greater than the existing
                 new_db = cluster["datacube_" + database]
                 new_collection = new_db[coll]
@@ -184,19 +179,22 @@ class DataCrudView(APIView):
                         "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
 
-                # Check if field labels match
+                # Check if field labels match and if number of fields is greater than the existing
                 field_labels = mongodb_coll.get('field_labels', [])
-                if set(data_to_insert.keys()) != set(field_labels):
-                    return Response(
-                        {"success": False, "message": f"Field labels mismatch. Expected: '{', '.join(field_labels)}', Got: '{', '.join(data_to_insert.keys())}'",
-                        "data": []},
-                        status=status.HTTP_400_BAD_REQUEST)
+                expected_labels_set = set(field_labels)
+                data_keys_set = set(data_to_insert.keys())
 
-                # Check if number of fields is greater than the existing
-                if field_count > mongodb_coll.get('number_of_fields', 0):
+                if expected_labels_set != data_keys_set or len(data_keys_set) > mongodb_coll.get('number_of_fields', 0):
+                    message = ""
+                    if expected_labels_set != data_keys_set:
+                        message += f"Field labels mismatch. Expected: '{', '.join(field_labels)}', Got: '{', '.join(data_to_insert.keys())}'"
+                    if len(data_keys_set) > mongodb_coll.get('number_of_fields', 0):
+                        if message:
+                            message += ". "
+                        message += f"Maximum number of fields is {mongodb_coll.get('number_of_fields', 0)} but Got: {len(data_keys_set)}"
+
                     return Response(
-                        {"success": False, "message": f"Maximum number of fields is {mongodb_coll.get('number_of_fields', 0)} but Got: {field_count}",
-                        "data": []},
+                        {"success": False, "message": message, "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
 
             # Insert data
@@ -288,18 +286,21 @@ class DataCrudView(APIView):
 
                 # Check if field labels match
                 field_labels = mongodb_coll.get('field_labels', [])
-                if set(update_data.keys()) != set(field_labels):
-                    return Response(
-                        {"success": False, "message": f"Field labels mismatch. Expected: '{', '.join(field_labels)}', Got: '{', '.join(update_data.keys())}'",
-                        "data": []},
-                        status=status.HTTP_400_BAD_REQUEST)
-
-                # Check if number of fields is greater than the existing
+                expected_labels_set = set(field_labels)
+                update_keys_set = set(update_data.keys())
                 field_count = len(update_data)
-                if field_count > mongodb_coll.get('number_of_fields', 0):
+
+                if expected_labels_set != update_keys_set or field_count > mongodb_coll.get('number_of_fields', 0):
+                    message = ""
+                    if expected_labels_set != update_keys_set:
+                        message += f"Field labels mismatch. Expected: '{', '.join(field_labels)}', Got: '{', '.join(update_data.keys())}'"
+                    if field_count > mongodb_coll.get('number_of_fields', 0):
+                        if message:
+                            message += ". "
+                        message += f"Maximum number of fields is {mongodb_coll.get('number_of_fields', 0)} but Got: {field_count}"
+
                     return Response(
-                        {"success": False, "message": f"Maximum number of fields is {mongodb_coll.get('number_of_fields', 0)} but Got: {field_count}",
-                        "data": []},
+                        {"success": False, "message": message, "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
 
             # Perform the update operation
