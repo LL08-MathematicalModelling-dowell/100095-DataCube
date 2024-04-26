@@ -151,20 +151,6 @@ class DataCrudView(APIView):
 
             # Check criteria before inserting data
             if operation == "insert":
-                
-                # Check if database name matches
-                if mongoDb.get('database_name') != database:
-                    return Response(
-                        {"success": False, "message": f"Database name mismatch. Expected: '{mongoDb.get('database_name')}', Got: '{database}'",
-                        "data": []},
-                        status=status.HTTP_400_BAD_REQUEST)
-                    
-                # Check for name of collection exact match with existing collection name
-                if coll not in mongoDb.get('collection_names'):
-                    return Response(
-                        {"success": False, "message": f"Collection name '{coll}' not found in '{database}'",
-                        "data": []},
-                        status=status.HTTP_400_BAD_REQUEST)
 
                 # Check if number of documents is greater than the existing
                 new_db = cluster["datacube_" + database]
