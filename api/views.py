@@ -18,7 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 import re
 import time
 from pymongo import MongoClient
-
+from datetime import datetime
 from rest_framework.exceptions import ValidationError
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -173,7 +173,7 @@ class DataCrudView(APIView):
                 if expected_labels_set != data_keys_set or len(data_keys_set) > mongodb_coll.get('number_of_fields', 0):
                     message = ""
                     if expected_labels_set != data_keys_set:
-                        message += f"Field labels mismatch. Expected: '{', '.join(field_labels)}', Got: '{', '.join(data_to_insert.keys())}'"
+                        message += f"Field labels mismatch. Expected: '{', '.join(field_labels)}', Got: '{', '.join(data_keys_set)}'"
                     if len(data_keys_set) > mongodb_coll.get('number_of_fields', 0):
                         if message:
                             message += ". "
@@ -187,12 +187,17 @@ class DataCrudView(APIView):
             new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
+            insert_date_time_list = []
+            insert_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            insert_date_time_list.insert(0,insert_date_time)
+
+            inserted_index = new_collection.count_documents({}) + 1
+            data_to_insert[f"operation_{inserted_index}"] = {"insert":insert_date_time_list}
+            
             inserted_data = new_collection.insert_one(data_to_insert)
 
-            return Response(
-                {"success": True, "message": "Data inserted successfully!",
-                "data": {"inserted_id": str(inserted_data.inserted_id)}},
-                status=status.HTTP_201_CREATED)
+            return Response({"success": True, "message": "Data inserted successfully!","data": {"inserted_id": str(inserted_data.inserted_id)}},status=status.HTTP_201_CREATED)
+        
         except ValidationError as ve:
             return Response({"success": False, "message": str(ve), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
