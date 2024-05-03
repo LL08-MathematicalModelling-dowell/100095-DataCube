@@ -88,14 +88,14 @@
 
                                 <br>
 
-                                <div class="form-group">
+                                {% comment %} <div class="form-group">
                                     <label for="numCollections">
                                         <h6>Number of Collections (1-10000):</h6>
                                     </label>
                                     <input type="number" id="numCollections" name="numCollections" min="1" max="10000"
                                         required>
                                 </div>
-                                <br>
+                                <br> {% endcomment %}
 
                                 <div class="row">
                                     <div class="col-md-5">
@@ -134,22 +134,22 @@
 
                                 <br>
 
-                                <div class="form-group">
+                                {% comment %} <div class="form-group">
                                     <label for="numDocuments">
                                         <h6>Number of Documents (1-10000):</h6>
                                     </label>
                                     <input type="number" id="numDocuments" name="numDocuments" min="1" max="10000"
                                         required>
                                 </div>
-                                <br>
+                                <br> {% endcomment %}
 
-                                <div class="form-group">
+                                {% comment %} <div class="form-group">
                                     <label for="numFields">
                                         <h6>Number of Fields (1-10000):</h6>
                                     </label>
                                     <input type="number" id="numFields" name="numFields" min="1" max="10000" required>
                                 </div>
-                                <br>
+                                <br> {% endcomment %}
 
                                 <div class="form-group">
                                     <label for="fieldLabels">
@@ -198,29 +198,66 @@
             printError("metaError", "");
         });
 
-        $('#numCollections').keypress(function () {
+        {% comment %} $('#numCollections').keypress(function () {
             printError("metaError", "");
-        });
+        }); {% endcomment %}
 
         $('#colNames').keypress(function () {
             printError("metaError", "");
         });
 
-        $('#numDocuments').keypress(function () {
+        {% comment %} $('#numDocuments').keypress(function () {
             printError("metaError", "");
-        });
+        }); {% endcomment %}
 
-        $('#numFields').keypress(function () {
+        {% comment %} $('#numFields').keypress(function () {
             printError("metaError", "");
-        });
+        }); {% endcomment %}
 
         $('#fieldLabels').keypress(function () {
             printError("metaError", "");
         });
 
+
         $('#meta-form').submit(function validateForm() {
             var databaseName = $("#databaseName").val();
-            var numCollections = parseInt($("#numCollections").val());
+            //var numCollections = parseInt($("#numCollections").val());
+            var colNames = $("#colNames").val();
+            //var numDocuments = parseInt($("#numDocuments").val());
+            //var numFields = parseInt($("#numFields").val());
+            var fieldLabels = $("#fieldLabels").val();
+        
+            // Database Name validation
+            if (databaseName.includes(" ")) {
+                printError("metaError", "Error: Database Name should not contain spaces.");
+                return false;
+            }
+        
+            // Collection Names validation
+            // var colNamesArray = colNames.split(",");
+            // colNamesArray = colNamesArray.map(label => label.trim());
+        
+            // if(colNamesArray.length !== numCollections) {
+            //     printError("metaError", `Error: Number of Collection Names should be equal to the Number of Collections (${numCollections}).`);
+            //     return false;
+            // }
+        
+            // Field Labels validation
+            var fieldLabelsArray = fieldLabels.split(",");
+            fieldLabelsArray = fieldLabelsArray.map(label => label.trim());
+        
+            // if(fieldLabelsArray.length !== numFields) {
+            //     printError("metaError", `Error: Number of Field Labels should be equal to the Number of Fields (${numFields}).`);
+            //     return false;
+            // }
+        
+            return true; // Allow form submission
+        });
+        
+
+        {% comment %} $('#meta-form').submit(function validateForm() {
+            var databaseName = $("#databaseName").val();
+            //var numCollections = parseInt($("#numCollections").val());
             var colNames = $("#colNames").val();
             var numDocuments = parseInt($("#numDocuments").val());
             var numFields = parseInt($("#numFields").val());
@@ -254,7 +291,9 @@
                         {## }
 
                         return true; // Allow form submission
-                    });
+                    }); {% endcomment %}
+
+        
     </script>
     {% include 'includes/footer.html' %}
 </div>

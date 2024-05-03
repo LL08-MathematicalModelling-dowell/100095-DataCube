@@ -135,10 +135,13 @@ def metadata_view(request):
                     coll = db['metadata_collection']
 
                     final_data = {
-                        "number_of_collections": int(request.POST.get('numCollections')),
+                        # "number_of_collections": int(request.POST.get('numCollections')),
+                        "number_of_collections": 10000,
                         "database_name": str(request.POST.get('databaseName').lower()),
-                        "number_of_documents": int(request.POST.get('numDocuments')),
-                        "number_of_fields": int(request.POST.get('numFields')),
+                        # "number_of_documents": int(request.POST.get('numDocuments')),
+                        "number_of_documents": 10000,
+                        # "number_of_fields": int(request.POST.get('numFields')),
+                        "number_of_fields": 10000,
                         "field_labels": request.POST.get('fieldLabels').split(','),
                         "collection_names": request.POST.get('colNames').split(','),
                         "region_id": str(request.POST.get('selected_region')),

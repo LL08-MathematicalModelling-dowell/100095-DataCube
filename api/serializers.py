@@ -32,6 +32,7 @@ class InputPostSerializer(serializers.Serializer):
     operation = serializers.ChoiceField(choices=operations, required=True)
     data = serializers.JSONField(required=True)
     payment = serializers.BooleanField(default=True, allow_null=True, required=False)
+    is_deleted = serializers.BooleanField(default=False)
 
 
 class InputPutSerializer(serializers.Serializer):
