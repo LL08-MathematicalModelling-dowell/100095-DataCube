@@ -9,7 +9,7 @@ from django.template import loader
 import requests
 from django.conf import settings
 from dbdetails.script import MongoDatabases
-
+from django.contrib import messages
 
 def login_view(request):
     try:
@@ -220,6 +220,7 @@ def retrieve_metadata(request):
                 records = []
                 for record in metadata_records:
                     # Add this line for debugging
+                    # print(record,"', '.join(record.get('collection_names', []))",', '.join(record.get('field_labels', [])))
 
                     records.append({
 
@@ -228,6 +229,7 @@ def retrieve_metadata(request):
                         'number_of_collections': record.get('number_of_collections', 0),  # Add this line
                         'number_of_documents': record.get('number_of_documents', 0),  # Add this line
                         'number_of_fields': record.get('number_of_fields', 0),
+                        'field_labels': ', '.join(record.get('field_labels', [])),
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
@@ -289,6 +291,54 @@ def retrieve_collections(request, dbname):
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    
+    
+def retrieve_fields(request, dbname):
+    try:
+        if request.session.get("session_id"):
+            url = "https://100014.pythonanywhere.com/api/userinfo/"
+            resp = requests.post(url, data={"session_id": request.session["session_id"]})
+            user = json.loads(resp.text)
+            if user.get("userinfo", {}).get("username"):
+                
+                cluster = settings.MONGODB_CLIENT
+                db = cluster["datacube_metadata"]
+                coll = db['metadata_collection']
+
+                metadata_records = coll.find(
+                    {"added_by": user.get("userinfo", {}).get("username"), "database_name": dbname})
+
+                records = []
+                field_names = []
+                total_fields = 0
+                for record in metadata_records:
+                    field_labels = record['field_labels']
+                    field_names.append(field_labels)
+                    total_fields = len(field_labels)
+
+                    records.append({
+                        'number_of_fields': total_fields,
+                        'field_labels': ', '.join(record.get('field_labels', [])),
+                        'added_by': user.get("userinfo", {}).get("username"),
+                    })
+
+                for name in field_names:
+                    field_names=name
+                user = request.user
+                is_admin = False
+                context = {'page': 'Retrieve Fields', 'segment': 'metadata', 'is_admin': is_admin,
+                           'records': records,
+                           'dbname': dbname,
+                           'field_names': field_names,
+                           'total_fields': total_fields}
+                html_template = loader.get_template('home/fields.html')
+                return HttpResponse(html_template.render(context, request))
+            else:
+                return redirect(f"{settings.MY_BASE_URL}/logout/")
+        else:
+            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    except:
+        return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
 
 @csrf_exempt
@@ -342,6 +392,59 @@ def add_collections(request, dbname):
                 context = {'page': 'Add Collections', 'segment': 'metadata', 'is_admin': is_admin, 'dbname': dbname}
 
                 return render(request, 'home/collections.html', context)
+            else:
+                return redirect(f"{settings.MY_BASE_URL}/logout/")
+        else:
+            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    except:
+        return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    
+@csrf_exempt
+def add_fields(request, dbname):
+    try:
+        if request.session.get("session_id"):
+            url = "https://100014.pythonanywhere.com/api/userinfo/"
+            resp = requests.post(url, data={"session_id": request.session["session_id"]})
+            user = json.loads(resp.text)
+            if user.get("userinfo", {}).get("username"):
+                if request.method == 'POST':
+                    
+                    cluster = settings.MONGODB_CLIENT
+                    db = cluster["datacube_metadata"]
+                    coll = db['metadata_collection']
+
+                    final_data = {
+                        "field_labels": request.POST.get('field_labels').split(','),
+                        "added_by": user.get("userinfo", {}).get("username"),
+                    }
+
+                    collections = coll.find_one({"database_name": dbname})
+                    if collections:
+                        existing_fields = collections.get("field_labels", [])
+                        new_fields = final_data.get("field_labels", [])
+
+                        # Combine and remove duplicates
+                        updated_fields = list(set(existing_fields + new_fields))
+                        if len(updated_fields) > 10000:
+                            messages.error(request, f'Number of field labels exceeds the limit of 10,000')
+                        else: 
+                            coll.update_one(
+                                {"database_name": dbname},
+                                {"$set": {"field_labels": updated_fields}}
+                            )
+                    else:
+                        coll.insert_one({
+                            "database_name": dbname,
+                            "field_labels": final_data["field_labels"],
+                            "added_by": final_data["added_by"]
+                        })
+
+                    return redirect('home:retrieve_fields', dbname=dbname)
+
+                is_admin = False
+                context = {'page': 'Add Fields', 'segment': 'metadata', 'is_admin': is_admin, 'dbname': dbname}
+
+                return render(request, 'home/fields.html', context)
             else:
                 return redirect(f"{settings.MY_BASE_URL}/logout/")
         else:
