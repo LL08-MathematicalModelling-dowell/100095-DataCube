@@ -105,7 +105,6 @@ def data_view(request):
                         collections.extend(colls)
                     except Exception:
                         continue
-
                 context = {'page': 'Data View', 'segment': 'data', 'collections': collections, 'is_admin': is_admin,
                            'databases': databases}
                 html_template = loader.get_template('home/data-view.html')
