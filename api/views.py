@@ -111,11 +111,11 @@ class DataCrudView(APIView):
             serializer = InputPostSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
-
             data = serializer.validated_data
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
+            data_type = data.get('data_type')
             data_to_insert = data.get('data', {})
             api_key = data.get('api_key')
             payment = data.get('payment', True)
@@ -139,6 +139,10 @@ class DataCrudView(APIView):
 
             if operation not in ["insert"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
+                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                
+            if data_type not in serializer.choose_data_type:
+                return Response({"success": False, "message": "Data type not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
             if payment:
@@ -169,7 +173,7 @@ class DataCrudView(APIView):
                     insert_date_time_list = []
                     insert_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                     insert_date_time_list.insert(0, insert_date_time)
-                    data_to_insert[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False}
+                    data_to_insert[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False, 'data_type':data_type}
 
                 inserted_data = new_collection.insert_one(data_to_insert)
 
@@ -440,7 +444,6 @@ class GetDataView(APIView):
         try:
             serializer = InputGetSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-
             data = serializer.validated_data
             database = data.get('db_name')
             coll = data.get('coll_name')
@@ -482,6 +485,7 @@ class GetDataView(APIView):
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                
             if payment:
                 res = check_api_key(api_key)
                 if res != "success":
@@ -508,6 +512,14 @@ class GetDataView(APIView):
                             if operation_data.get("is_deleted", False):
                                 keys_to_delete.append(key)
                                 keys_to_delete.append(key[:-len("_operation")])
+                            elif not 'fetch_date_time' in operation_data:
+                                operation_data['fetch_date_time'] = [fetch_date_time]
+                                update_query = {
+                                    "$set": {
+                                        key + ".fetch_date_time": operation_data["fetch_date_time"]
+                                    }
+                                }
+                                new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
                             elif 'fetch_date_time' in operation_data and not operation_data["is_deleted"]:
                                 operation_data['fetch_date_time'].insert(0, fetch_date_time)
                                 update_query = {
@@ -516,11 +528,10 @@ class GetDataView(APIView):
                                     }
                                 }
                                 new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
+
                     for key in keys_to_delete:
                         if key in doc:
                             del doc[key]
-
-
 
             if len(result) > 0 and all("_id" in doc and len(doc) > 1 for doc in result):
                 msg = "Data found!"
@@ -529,7 +540,6 @@ class GetDataView(APIView):
                 return Response({"success": True, "message": msg, "data": []}, status=status.HTTP_200_OK)
             
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
-
 
         except Exception as e:
             traceback.print_exc()

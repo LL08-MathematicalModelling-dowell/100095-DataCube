@@ -26,6 +26,8 @@ class InputPostSerializer(serializers.Serializer):
         ('delete', 'delete'),
         ('fetch', 'fetch'),
     ]
+    choose_data_type = ['real_data', 'testing_data', 'learning_data', 'deleted_data']
+    
     api_key = serializers.CharField(max_length=510, required=True)
     coll_name = serializers.CharField(max_length=255, required=True)
     db_name = serializers.CharField(max_length=255, required=True)
@@ -33,6 +35,7 @@ class InputPostSerializer(serializers.Serializer):
     data = serializers.JSONField(required=True)
     payment = serializers.BooleanField(default=True, allow_null=True, required=False)
     is_deleted = serializers.BooleanField(default=False)
+    data_type = serializers.ChoiceField(choices=choose_data_type, required=True)
 
 
 class InputPutSerializer(serializers.Serializer):
