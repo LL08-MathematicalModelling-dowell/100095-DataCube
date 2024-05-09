@@ -111,6 +111,7 @@ class DataCrudView(APIView):
             serializer = InputPostSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
+
             data = serializer.validated_data
             database = data.get('db_name')
             coll = data.get('coll_name')
@@ -120,9 +121,9 @@ class DataCrudView(APIView):
             payment = data.get('payment', True)
 
             cluster = settings.MONGODB_CLIENT
-            mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
+            mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
 
-            if not mongoDb:
+            if not mongo_db:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
                     "data": []},
@@ -162,27 +163,20 @@ class DataCrudView(APIView):
                         "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
 
-                data_keys_set = set(data_to_insert.keys())
+                data_keys = list(data_to_insert.keys())  # Get a list of keys to iterate over
+                for key in data_keys:
+                    val = data_to_insert[key]
+                    insert_date_time_list = []
+                    insert_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    insert_date_time_list.insert(0, insert_date_time)
+                    data_to_insert[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False}
 
-                if len(data_keys_set) > 10000:
-                    return Response({"success": False, "message": f"Number of fields exceeds the limit of 10,000 per document",
-                                    "data": []}, status=status.HTTP_400_BAD_REQUEST)
+                inserted_data = new_collection.insert_one(data_to_insert)
 
-            # Insert data
-            new_db = cluster["datacube_" + database]
-            new_collection = new_db[coll]
+                return Response({"success": True, "message": "Data inserted successfully!",
+                                "data": {"inserted_id": str(inserted_data.inserted_id)}},
+                                status=status.HTTP_201_CREATED)
 
-            insert_date_time_list = []
-            insert_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-            insert_date_time_list.insert(0,insert_date_time)
-
-            inserted_index = new_collection.count_documents({}) + 1
-            data_to_insert[f"operation_{inserted_index}"] = {"update/insert":insert_date_time_list}
-            data_to_insert.setdefault('is_deleted', False)
-            inserted_data = new_collection.insert_one(data_to_insert)
-
-            return Response({"success": True, "message": "Data inserted successfully!","data": {"inserted_id": str(inserted_data.inserted_id)}},status=status.HTTP_201_CREATED)
-        
         except ValidationError as ve:
             return Response({"success": False, "message": str(ve), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
@@ -191,6 +185,7 @@ class DataCrudView(APIView):
             return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
+            
     def put(self, request, *args, **kwargs):
         try:
             serializer = InputPutSerializer(data=request.data)
@@ -455,7 +450,6 @@ class GetDataView(APIView):
             limit = int(data.get('limit')) if 'limit' in data else None
             offset = int(data.get('offset')) if 'offset' in data else None
             payment = data.get('payment', True)
-            filters.setdefault('is_deleted', False)
             
             for key, value in filters.items():
                 if key == "_id":
@@ -496,7 +490,6 @@ class GetDataView(APIView):
                         "data": []},
                         status=status.HTTP_404_NOT_FOUND)
                     
-            filters['is_deleted'] = False
             result = None
             if operation == "fetch":
                 query = new_collection.find(filters)
@@ -505,31 +498,42 @@ class GetDataView(APIView):
                 if limit is not None:
                     query = query.limit(limit)
                 result = list(query)
-                        
                 for doc in result:
                     doc['_id'] = str(doc['_id'])
-                    for key in doc.keys():
-                        if key.startswith("operation"):
-                            # Add fetch date and time to the existing array
-                            fetch_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                            if 'fetch' in doc[key]:
-                                doc[key]['fetch'].insert(0, fetch_date_time)
-                            else:
-                                doc[key]['fetch'] = [fetch_date_time]
-                            # Update the document in the collection with the updated fetch date and time array
-                            new_collection.update_one({"_id": ObjectId(doc['_id'])}, {"$set": {key: doc[key]}})
+                    fetch_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    keys_to_delete = []
+                    for key in list(doc.keys()):
+                        if key.endswith("_operation"):
+                            operation_data = doc[key]
+                            if operation_data.get("is_deleted", False):
+                                keys_to_delete.append(key)
+                                keys_to_delete.append(key[:-len("_operation")])
+                            elif 'fetch_date_time' in operation_data and not operation_data["is_deleted"]:
+                                operation_data['fetch_date_time'].insert(0, fetch_date_time)
+                                update_query = {
+                                    "$set": {
+                                        key + ".fetch_date_time": operation_data["fetch_date_time"]
+                                    }
+                                }
+                                new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
+                    for key in keys_to_delete:
+                        if key in doc:
+                            del doc[key]
 
-            if len(result) > 0:
+
+
+            if len(result) > 0 and all("_id" in doc and len(doc) > 1 for doc in result):
                 msg = "Data found!"
             else:
                 msg = "No data exists for this query/collection"
-
+                return Response({"success": True, "message": msg, "data": []}, status=status.HTTP_200_OK)
+            
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
+
 
         except Exception as e:
             traceback.print_exc()
-            return Response({"success": False, "message": str(e), "data": []},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CollectionView(APIView):
