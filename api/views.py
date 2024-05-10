@@ -199,11 +199,11 @@ class DataCrudView(APIView):
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
+            data_type = data.get('data_type')
             query = data.get('query', {})
             update_data = data.get('update_data', {})
             api_key = data.get('api_key')
             payment = data.get('payment', True)
-            query.setdefault('is_deleted', False)
 
             for key, value in query.items():
                 if key in ["id", "_id"]:
@@ -214,13 +214,12 @@ class DataCrudView(APIView):
                         pass
 
             cluster = settings.MONGODB_CLIENT
-
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
 
             if not mongoDb:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
             mongodb_coll = settings.METADATA_COLLECTION.find_one(
@@ -229,7 +228,7 @@ class DataCrudView(APIView):
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
             new_db = cluster["datacube_" + database]
@@ -238,6 +237,10 @@ class DataCrudView(APIView):
             if operation not in ["update"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                
+            if data_type not in serializer.choose_data_type:
+                return Response({"success": False, "message": "Data type not allowed", "data": []},
+                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
             if payment:
                 res = check_api_key(api_key)
@@ -245,7 +248,7 @@ class DataCrudView(APIView):
                 if res != "success":
                     return Response(
                         {"success": False, "message": res,
-                         "data": []},
+                        "data": []},
                         status=status.HTTP_404_NOT_FOUND)
 
             if operation == "update":
@@ -255,29 +258,37 @@ class DataCrudView(APIView):
                 if existing_document_count > 10000:
                     return Response(
                         {"success": False, "message": f"10,000 number of documents reached in '{coll}' collection",
-                         "data": []},
+                        "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
 
                 field_count = len(update_data)
                 if field_count > 10000:
                     return Response({"success": False, "message": f"Number of fields exceeds the limit of 10,000 per document",
-                                     "data": []}, status=status.HTTP_400_BAD_REQUEST)
-
-                result = new_collection.update_many(query, {"$set": update_data})
-
+                                    "data": []}, status=status.HTTP_400_BAD_REQUEST)
+                    
                 existing_document = new_collection.find_one(query)
+                modified_count = 0
                 if existing_document:
                     for key, value in existing_document.items():
-                        if key.startswith("operation"):
-                            existing_operation = existing_document[key]
-                            update_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                            existing_operation["update/insert"].insert(0,update_date_time)
-                            new_collection.update_one(query, {"$set": {key: existing_operation}})
-                            break
-
+                        if key.endswith("_operation"):
+                            existingValue  = existing_document.get(key.replace('_operation', ''))
+                            updatedValue  = update_data.get(key.replace('_operation', ''))
+                            isDeleted = existing_document.get(key).get('is_deleted')
+                            if existingValue != updatedValue and not isDeleted:
+                                existing_operation = existing_document.get(key, {})
+                                update_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                                existing_operation.setdefault("update_date_time", []).insert(0, update_date_time)
+                                existing_operation["data_type"]=data_type
+                                
+                                result = new_collection.update_one(query, {"$set": {key: existing_operation, key.replace('_operation', ''): updatedValue}})   
+                                modified_count = result.modified_count
+                                
+                                if "update_date_time" not in existing_operation:
+                                    existing_operation["update_date_time"] = [update_date_time] 
+                                    
                 return Response(
-                    {"success": True, "message": f"{result.modified_count} documents updated successfully!",
-                     "data": []},
+                    {"success": True, "message": f"{modified_count} documents updated successfully!",
+                    "data": []},
                     status=status.HTTP_200_OK)
         except Exception as e:
             traceback.print_exc()
