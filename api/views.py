@@ -304,9 +304,9 @@ class DataCrudView(APIView):
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
+            data_type = data.get('data_type')
             query = data.get('query', {})
             api_key = data.get('api_key')
-            query.setdefault('is_deleted', False)
 
             for key, value in query.items():
                 if key in ["id", "_id"]:
@@ -336,8 +336,12 @@ class DataCrudView(APIView):
             new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
-            if operation not in ["delete"]:
+            if operation != "delete":
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
+                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                
+            if data_type not in serializer.choose_data_type:
+                return Response({"success": False, "message": "Data type not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
             res = check_api_key(api_key)
@@ -347,20 +351,30 @@ class DataCrudView(APIView):
                     "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            for doc in new_collection.find(query):
-                doc['_id'] = str(doc['_id'])
-                for key in doc.keys():
-                    if key.startswith("operation"):
-                        if 'delete' in doc[key]:
-                            doc[key]['delete'].insert(0,datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
-                        else:
-                            doc[key]['delete'] = [datetime.now().strftime("%d-%m-%Y %H:%M:%S")]
+            existing_document = new_collection.find_one(query)
+            modified_count = 0
+            if existing_document:
+                for key, value in existing_document.items():
+                    if key.endswith("_operation"):
+                        # existingValue  = existing_document.get(key.replace('_operation', ''))
+                        # updatedValue  = query.get(key.replace('_operation', ''))
+                        isDeleted = existing_document.get(key).get('is_deleted')
+                        if not isDeleted:
+                            existing_operation = existing_document.get(key, {})
+                            deleted_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                            existing_operation.setdefault("deleted_date_time", []).insert(0, deleted_date_time)
+                            existing_operation['is_deleted']=True
+                            # existing_operation["data_type"]=data_type
+                            
+                            result = new_collection.update_one(query, {"$set": {key: existing_operation}})   
+                            modified_count = result.modified_count
+                            
+                            if "deleted_date_time" not in existing_operation:
+                                existing_operation["deleted_date_time"] = [deleted_date_time] 
 
-                        new_collection.update_one({"_id": ObjectId(doc['_id'])}, {"$set": {key: doc[key]}})
-            result = new_collection.update_many(query, {"$set": {"is_deleted": True}})
 
             return Response(
-                {"success": True, "message": f"{result.modified_count} documents deleted successfully!",
+                {"success": True, "message": f"{modified_count} documents deleted successfully!",
                 "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
@@ -459,6 +473,7 @@ class GetDataView(APIView):
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
+            data_type = data.get('data_type')
             api_key = data.get('api_key')
             filters = serializer.validated_data.get('filters', {})
             limit = int(data.get('limit')) if 'limit' in data else None
@@ -495,6 +510,10 @@ class GetDataView(APIView):
 
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
+                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            
+            if data_type not in serializer.choose_data_type:
+                return Response({"success": False, "message": "Data type not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
                 
             if payment:
