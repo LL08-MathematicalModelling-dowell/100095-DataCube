@@ -274,22 +274,32 @@ class DataCrudView(APIView):
                             existingValue  = existing_document.get(key.replace('_operation', ''))
                             updatedValue  = update_data.get(key.replace('_operation', ''))
                             isDeleted = existing_document.get(key).get('is_deleted')
-                            if existingValue != updatedValue and not isDeleted:
-                                existing_operation = existing_document.get(key, {})
-                                update_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                                existing_operation.setdefault("update_date_time", []).insert(0, update_date_time)
-                                existing_operation["data_type"]=data_type
-                                
-                                result = new_collection.update_one(query, {"$set": {key: existing_operation, key.replace('_operation', ''): updatedValue}})   
-                                modified_count = result.modified_count
-                                
-                                if "update_date_time" not in existing_operation:
-                                    existing_operation["update_date_time"] = [update_date_time] 
+                            existing_operation = existing_document.get(key, {})
+                            if existing_operation["data_type"]==data_type:
+                                if existingValue != updatedValue and not isDeleted:
+                                    
+                                    update_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                                    existing_operation.setdefault("update_date_time", []).insert(0, update_date_time)
+                                    # existing_operation["data_type"]=data_type
+                                    
+                                    result = new_collection.update_one(query, {"$set": {key: existing_operation, key.replace('_operation', ''): updatedValue}})   
+                                    modified_count = result.modified_count
+                                    
+                                    if "update_date_time" not in existing_operation:
+                                        existing_operation["update_date_time"] = [update_date_time]
+                            else:
+                                return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{existing_operation['data_type']}' ",
+                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)
                                     
                 return Response(
                     {"success": True, "message": f"{modified_count} documents updated successfully!",
                     "data": []},
                     status=status.HTTP_200_OK)
+                
+        except ValidationError as ve:
+            return Response({"success": False, "message": str(ve), "data": []},
+                            status=status.HTTP_400_BAD_REQUEST)
+            
         except Exception as e:
             traceback.print_exc()
             return Response({"success": False, "message": str(e), "data": []},
@@ -358,20 +368,24 @@ class DataCrudView(APIView):
                     if key.endswith("_operation"):
                         # existingValue  = existing_document.get(key.replace('_operation', ''))
                         # updatedValue  = query.get(key.replace('_operation', ''))
-                        isDeleted = existing_document.get(key).get('is_deleted')
-                        if not isDeleted:
-                            existing_operation = existing_document.get(key, {})
-                            deleted_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                            existing_operation.setdefault("deleted_date_time", []).insert(0, deleted_date_time)
-                            existing_operation['is_deleted']=True
-                            # existing_operation["data_type"]=data_type
-                            
-                            result = new_collection.update_one(query, {"$set": {key: existing_operation}})   
-                            modified_count = result.modified_count
-                            
-                            if "deleted_date_time" not in existing_operation:
-                                existing_operation["deleted_date_time"] = [deleted_date_time] 
-
+                        existing_operation = existing_document.get(key, {})
+                        if existing_operation["data_type"]==data_type:
+                            isDeleted = existing_document.get(key).get('is_deleted')
+                            if not isDeleted:
+                                deleted_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                                existing_operation.setdefault("deleted_date_time", []).insert(0, deleted_date_time)
+                                existing_operation['is_deleted']=True
+                                # existing_operation["data_type"]=data_type
+                                
+                                result = new_collection.update_one(query, {"$set": {key: existing_operation}})   
+                                modified_count = result.modified_count
+                                
+                                if "deleted_date_time" not in existing_operation:
+                                    existing_operation["deleted_date_time"] = [deleted_date_time] 
+                        else:
+                            return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{existing_operation['data_type']}' ",
+                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)
+                               
 
             return Response(
                 {"success": True, "message": f"{modified_count} documents deleted successfully!",
@@ -539,25 +553,30 @@ class GetDataView(APIView):
                     for key in list(doc.keys()):
                         if key.endswith("_operation"):
                             operation_data = doc[key]
-                            if operation_data.get("is_deleted", False):
-                                keys_to_delete.append(key)
-                                keys_to_delete.append(key[:-len("_operation")])
-                            elif not 'fetch_date_time' in operation_data:
-                                operation_data['fetch_date_time'] = [fetch_date_time]
-                                update_query = {
-                                    "$set": {
-                                        key + ".fetch_date_time": operation_data["fetch_date_time"]
+                            if doc[key]['data_type']==data_type:
+                                
+                                if operation_data.get("is_deleted", False):
+                                    keys_to_delete.append(key)
+                                    keys_to_delete.append(key[:-len("_operation")])
+                                elif not 'fetch_date_time' in operation_data:
+                                    operation_data['fetch_date_time'] = [fetch_date_time]
+                                    update_query = {
+                                        "$set": {
+                                            key + ".fetch_date_time": operation_data["fetch_date_time"]
+                                        }
                                     }
-                                }
-                                new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
-                            elif 'fetch_date_time' in operation_data and not operation_data["is_deleted"]:
-                                operation_data['fetch_date_time'].insert(0, fetch_date_time)
-                                update_query = {
-                                    "$set": {
-                                        key + ".fetch_date_time": operation_data["fetch_date_time"]
+                                    new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
+                                elif 'fetch_date_time' in operation_data and not operation_data["is_deleted"]:
+                                    operation_data['fetch_date_time'].insert(0, fetch_date_time)
+                                    update_query = {
+                                        "$set": {
+                                            key + ".fetch_date_time": operation_data["fetch_date_time"]
+                                        }
                                     }
-                                }
-                                new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
+                                    new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
+                            else:
+                                return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{doc[key]['data_type']}' ",
+                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)
 
                     for key in keys_to_delete:
                         if key in doc:
