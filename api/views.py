@@ -267,6 +267,23 @@ class DataCrudView(APIView):
                                     "data": []}, status=status.HTTP_400_BAD_REQUEST)
                     
                 existing_document = new_collection.find_one(query)
+
+                if existing_document:
+                    update_keys = set(update_data.keys())
+                    existing_ky_list = []
+                    for ex_key in existing_document.keys():
+                        if not ex_key.endswith("_operation") and ex_key != "_id":
+                            existing_ky_list.append(ex_key)
+
+                    if len(existing_ky_list) != len(update_keys):
+                        return Response({"success": False, "message": f"Number of fields expected {len(existing_ky_list)} but Got : {len(update_keys)}",
+                                        "data": []}, status=status.HTTP_400_BAD_REQUEST)
+                    for key in update_keys:
+                        if not key.endswith("_operation") and "_in" not in key:
+                            if key not in existing_document:
+                                return Response({"success": False, "message": f"Field '{key}' does not exist in the document",
+                                                "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
                 modified_count = 0
                 if existing_document:
                     for key, value in existing_document.items():
