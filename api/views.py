@@ -166,6 +166,13 @@ class DataCrudView(APIView):
                         {"success": False, "message": f"10,000 number of documents reached in '{coll}' collection",
                         "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
+                    
+                for key, value in data_to_insert.items():
+                    if key not in mongodb_coll['field_labels']:
+                        return Response(
+                        {"success": False, "message": f"New added field '{key}' is not registered in metadata collection",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
 
                 data_keys = list(data_to_insert.keys())  # Get a list of keys to iterate over
                 for key in data_keys:
@@ -251,8 +258,6 @@ class DataCrudView(APIView):
                         "data": []},
                         status=status.HTTP_404_NOT_FOUND)
 
-            if operation == "update":
-
                 existing_document_count = new_collection.count_documents(query)
 
                 if existing_document_count > 10000:
@@ -266,52 +271,58 @@ class DataCrudView(APIView):
                     return Response({"success": False, "message": f"Number of fields exceeds the limit of 10,000 per document",
                                     "data": []}, status=status.HTTP_400_BAD_REQUEST)
                     
-                existing_document = new_collection.find_one(query)
+            existing_document = new_collection.find_one(query)      
 
-                if existing_document:
-                    update_keys = set(update_data.keys())
-                    existing_ky_list = []
-                    for ex_key in existing_document.keys():
-                        if not ex_key.endswith("_operation") and ex_key != "_id":
-                            existing_ky_list.append(ex_key)
-
-                    if len(existing_ky_list) != len(update_keys):
-                        return Response({"success": False, "message": f"Number of fields expected {len(existing_ky_list)} but Got : {len(update_keys)}",
-                                        "data": []}, status=status.HTTP_400_BAD_REQUEST)
-                    for key in update_keys:
-                        if not key.endswith("_operation") and "_in" not in key:
-                            if key not in existing_document:
-                                return Response({"success": False, "message": f"Field '{key}' does not exist in the document",
-                                                "data": []}, status=status.HTTP_400_BAD_REQUEST)
-
-                modified_count = 0
-                if existing_document:
-                    for key, value in existing_document.items():
-                        if key.endswith("_operation"):
-                            existingValue  = existing_document.get(key.replace('_operation', ''))
-                            updatedValue  = update_data.get(key.replace('_operation', ''))
-                            isDeleted = existing_document.get(key).get('is_deleted')
-                            existing_operation = existing_document.get(key, {})
-                            if existing_operation["data_type"]==data_type:
-                                if existingValue != updatedValue and not isDeleted:
-                                    
+            modified_count = 0
+            existing_operation = existing_document.get(key, {})     
+                            
+            if existing_document:         
+                for key, value in update_data.items():
+                    
+                    if key not in mongodb_coll['field_labels']:
+                        return Response(
+                        {"success": False, "message": f"New added field '{key}' is not registered in metadata collection",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+                    
+                    if not key.endswith("_operation") and not existing_document.get(key):
+                        existing_document[key] = update_data[key]
+                        insert_date_time_list = []
+                        insert_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                        insert_date_time_list.insert(0, insert_date_time)
+                        existing_document[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False, 'data_type':data_type}
+                            
+                for key, value in existing_document.items():                    
+                    if key.endswith("_operation"):
+                        existingValue = existing_document.get(key.replace('_operation', ''))
+                        updatedValue = update_data.get(key.replace('_operation', ''))
+                        isDeleted = existing_document.get(key).get('is_deleted')
+                        existing_operation = existing_document.get(key, {})
+                        
+                        if existing_operation["data_type"] == data_type:
+                            
+                            if existingValue != updatedValue and not isDeleted:
+                                if updatedValue is not None:  # Only update if the new value is not None
                                     update_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                                    existing_operation.setdefault("update_date_time", []).insert(0, update_date_time)
-                                    # existing_operation["data_type"]=data_type
-                                    
-                                    result = new_collection.update_one(query, {"$set": {key: existing_operation, key.replace('_operation', ''): updatedValue}})   
-                                    modified_count = result.modified_count
-                                    
-                                    if "update_date_time" not in existing_operation:
-                                        existing_operation["update_date_time"] = [update_date_time]
-                            else:
-                                return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{existing_operation['data_type']}' ",
-                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)
-                                    
-                return Response(
-                    {"success": True, "message": f"{modified_count} documents updated successfully!",
-                    "data": []},
-                    status=status.HTTP_200_OK)
+                                    if isinstance(existing_operation, dict):  # Check if existing_operation is a dictionary
+                                        existing_operation.setdefault("update_date_time", []).insert(0, update_date_time)
+                                    else:
+                                        existing_operation = {"update_date_time": [update_date_time]}  # If not a dictionary, create a new one
+                                
+                                    existing_document[key.replace('_operation', '')] = updatedValue
+                                    modified_count += 1
+                        else:
+                            return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{existing_operation['data_type']}' ",
+                                            "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
+                result = new_collection.replace_one({"_id": existing_document["_id"]}, existing_document)
+                modified_count = result.modified_count
+
+                                
+            return Response(
+                {"success": True, "message": f"{modified_count} documents updated successfully!",
+                "data": []},
+                status=status.HTTP_200_OK)
                 
         except ValidationError as ve:
             return Response({"success": False, "message": str(ve), "data": []},
