@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from pathlib import Path
 from django.conf import settings
 
-from dbdetails.script import MongoDatabases
+from dbdetails.script import MongoDatabases, dowell_time
 from .serializers import *
 import json
 from rest_framework.response import Response
@@ -174,11 +174,12 @@ class DataCrudView(APIView):
                         "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
 
-                data_keys = list(data_to_insert.keys())  # Get a list of keys to iterate over
+                data_keys = list(data_to_insert.keys())
                 for key in data_keys:
                     val = data_to_insert[key]
                     insert_date_time_list = []
-                    insert_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    date_time = dowell_time()
+                    insert_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                     insert_date_time_list.insert(0, insert_date_time)
                     data_to_insert[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False, 'data_type':data_type}
 
@@ -288,7 +289,8 @@ class DataCrudView(APIView):
                     if not key.endswith("_operation") and not existing_document.get(key):
                         existing_document[key] = update_data[key]
                         insert_date_time_list = []
-                        insert_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                        date_time = dowell_time()
+                        insert_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                         insert_date_time_list.insert(0, insert_date_time)
                         existing_document[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False, 'data_type':data_type}
                             
@@ -302,9 +304,10 @@ class DataCrudView(APIView):
                         if existing_operation["data_type"] == data_type:
                             
                             if existingValue != updatedValue and not isDeleted:
-                                if updatedValue is not None:  # Only update if the new value is not None
-                                    update_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                                    if isinstance(existing_operation, dict):  # Check if existing_operation is a dictionary
+                                if updatedValue is not None:  
+                                    date_time = dowell_time()
+                                    update_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                                    if isinstance(existing_operation, dict):  
                                         existing_operation.setdefault("update_date_time", []).insert(0, update_date_time)
                                     else:
                                         existing_operation = {"update_date_time": [update_date_time]}  # If not a dictionary, create a new one
@@ -400,7 +403,8 @@ class DataCrudView(APIView):
                         if existing_operation["data_type"]==data_type:
                             isDeleted = existing_document.get(key).get('is_deleted')
                             if not isDeleted:
-                                deleted_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                                date_time = dowell_time()
+                                deleted_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                                 existing_operation.setdefault("deleted_date_time", []).insert(0, deleted_date_time)
                                 existing_operation['is_deleted']=True
                                 # existing_operation["data_type"]=data_type
@@ -576,7 +580,8 @@ class GetDataView(APIView):
                 result = list(query)
                 for doc in result:
                     doc['_id'] = str(doc['_id'])
-                    fetch_date_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    date_time = dowell_time()
+                    fetch_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                     keys_to_delete = []
                     for key in list(doc.keys()):
                         if key.endswith("_operation"):

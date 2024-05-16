@@ -265,10 +265,12 @@ def retrieve_collections(request, dbname):
                 records = []
                 collection_names = []
                 total_collections = 0
+                remaining_collections = 10000
                 for record in metadata_records:
                     collection_names = record['collection_names']
                     # Split the collection names by comma and count the number of items
                     total_collections = len(collection_names)
+                    remaining_collections = remaining_collections - total_collections
 
                     records.append({
                         'collection_names': ', '.join(record['collection_names']),
@@ -281,7 +283,7 @@ def retrieve_collections(request, dbname):
                 context = {'page': 'Retrieve Collections', 'segment': 'metadata', 'is_admin': is_admin,
                            'records': records,
                            'dbname': dbname, 'collection_names': collection_names,
-                           'total_collections': total_collections}
+                           'total_collections': total_collections,'remaining_collections':remaining_collections}
                 html_template = loader.get_template('home/collections.html')
                 return HttpResponse(html_template.render(context, request))
             else:
@@ -310,10 +312,12 @@ def retrieve_fields(request, dbname):
                 records = []
                 field_names = []
                 total_fields = 0
+                remaining_fields = 10000
                 for record in metadata_records:
                     field_labels = record['field_labels']
                     field_names.append(field_labels)
                     total_fields = len(field_labels)
+                    remaining_fields = remaining_fields - total_fields
 
                     records.append({
                         'number_of_fields': total_fields,
@@ -329,7 +333,7 @@ def retrieve_fields(request, dbname):
                            'records': records,
                            'dbname': dbname,
                            'field_names': field_names,
-                           'total_fields': total_fields}
+                           'total_fields': total_fields, 'remaining_fields': remaining_fields}
                 html_template = loader.get_template('home/fields.html')
                 return HttpResponse(html_template.render(context, request))
             else:
@@ -355,7 +359,7 @@ def add_collections(request, dbname):
                     coll = db['metadata_collection']
 
                     final_data = {
-                        "number_of_collections": int(request.POST.get('numCollections')),
+                        "number_of_collections": 10000, # int(request.POST.get('numCollections'))
                         "collection_names": request.POST.get('colNames').split(','),
                         "added_by": user.get("userinfo", {}).get("username"),
                     }

@@ -9,7 +9,7 @@
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center">
-        <h1>{{ dbname }} Collections ({{ total_collections }}) Records</h1>
+        <h1>{{ dbname }} Collections ({{ total_collections }}) Records & Remaining ({{remaining_collections}})</h1>
 
         <!-- Button trigger modal -->
 <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalLong">
@@ -30,17 +30,21 @@
                                     {% csrf_token %}
       <div class="modal-body">
 
-          <div class="form-group">
-            <label for="numCollections"><h6>Number of Collections (1-10000):</h6></label>
-            <input type="number" id="numCollections" name="numCollections" min="1" max="10000"
-                   required>
+        {% comment %} <div class="form-group">
+          <label for="numCollections"><h6>Number of Collections (1-10000):</h6></label>
+          <input type="number" id="numCollections" name="numCollections" min="1" max="10000"
+                  required>
         </div>
-        <br>
+
+        <br> {% endcomment %}
 
         <div class="form-group">
-            <label for="colNames"><h6>Collection Names (comma-separated):</h6></label>
-            <input type="text" id="colNames" name="colNames" required>
+              <label for="colNames"><h6>Collection Names (comma-separated):</h6></label>
+            <div class="row ps-2 pe-2">
+              <input type="text" id="colNames" name="colNames" required>
+            </div>
         </div>
+        
       </div>
 
       <div class="modal-footer">
@@ -96,7 +100,7 @@
         <p>No records to display.</p>
     {% endif %}
 </div>
-<script>
+{% comment %} <script>
         function printError(elementId, hintMessage) {
             document.getElementById(elementId).innerHTML = hintMessage;
         }
@@ -146,5 +150,5 @@
 // Use the dbname value in your JavaScript logic
        console.log('Database name:', dbname);
 
-    </script>
+    </script> {% endcomment %}
 {% endblock content %}
