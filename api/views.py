@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from pathlib import Path
 from django.conf import settings
 
-from dbdetails.script import MongoDatabases
+from dbdetails.script import MongoDatabases, dowell_time
 from .serializers import *
 import json
 from rest_framework.response import Response
@@ -18,7 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 import re
 import time
 from pymongo import MongoClient
-
+from datetime import datetime
 from rest_framework.exceptions import ValidationError
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -115,40 +115,34 @@ class DataCrudView(APIView):
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
+            data_type = data.get('data_type')
             data_to_insert = data.get('data', {})
             api_key = data.get('api_key')
             payment = data.get('payment', True)
 
             cluster = settings.MONGODB_CLIENT
+            mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
 
-
-            # start_time = time.time()
-            mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            # end_time = time.time()
-            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
-
-            if not mongoDb:
+            if not mongo_db:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            # start_time = time.time()
-            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            # end_time = time.time()
-            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
+            mongodb_coll = settings.METADATA_COLLECTION.find_one({"database_name": database, "collection_names": {"$in": [coll]}})
 
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
-
-            new_db = cluster["datacube_" + database]
-            new_collection = new_db[coll]
 
             if operation not in ["insert"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
+                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                
+            if data_type not in serializer.choose_data_type:
+                return Response({"success": False, "message": "Data type not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
             if payment:
@@ -157,27 +151,44 @@ class DataCrudView(APIView):
                 if res != "success":
                     return Response(
                         {"success": False, "message": res,
-                         "data": []},
+                        "data": []},
                         status=status.HTTP_404_NOT_FOUND)
 
             if operation == "insert":
-                total_documents = new_collection.count_documents({})
-                if total_documents >= 10000:
-                    return Response(
-                        {"success": False,
-                         "message": f"Sorry, You can add maximum 10,000 documents inside {coll} collection.",
-                         "data": []},
-                        status=status.HTTP_400_BAD_REQUEST)
-                else:
-                    # start_time = time.time()
-                    inserted_data = new_collection.insert_one(data_to_insert)
-                    # end_time = time.time()
-                    # print(f"inserted_data operation took: {measure_execution_time(start_time, end_time)} seconds for insert")
 
-            return Response(
-                {"success": True, "message": "Data inserted successfully!",
-                 "data": {"inserted_id": str(inserted_data.inserted_id)}},
-                status=status.HTTP_201_CREATED)
+                new_db = cluster["datacube_" + database]
+                new_collection = new_db[coll]
+
+                existing_document_count = new_collection.count_documents({})
+
+                if existing_document_count + 1 > 10000:
+                    return Response(
+                        {"success": False, "message": f"10,000 number of documents reached in '{coll}' collection",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+                    
+                for key, value in data_to_insert.items():
+                    if key not in mongodb_coll['field_labels']:
+                        return Response(
+                        {"success": False, "message": f"New added field '{key}' is not registered in metadata collection",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                data_keys = list(data_to_insert.keys())
+                for key in data_keys:
+                    val = data_to_insert[key]
+                    insert_date_time_list = []
+                    date_time = dowell_time()
+                    insert_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    insert_date_time_list.insert(0, insert_date_time)
+                    data_to_insert[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False, 'data_type':data_type}
+
+                inserted_data = new_collection.insert_one(data_to_insert)
+
+                return Response({"success": True, "message": "Data inserted successfully!",
+                                "data": {"inserted_id": str(inserted_data.inserted_id)}},
+                                status=status.HTTP_201_CREATED)
+
         except ValidationError as ve:
             return Response({"success": False, "message": str(ve), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
@@ -186,6 +197,7 @@ class DataCrudView(APIView):
             return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
+            
     def put(self, request, *args, **kwargs):
         try:
             serializer = InputPutSerializer(data=request.data)
@@ -195,6 +207,7 @@ class DataCrudView(APIView):
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
+            data_type = data.get('data_type')
             query = data.get('query', {})
             update_data = data.get('update_data', {})
             api_key = data.get('api_key')
@@ -209,26 +222,21 @@ class DataCrudView(APIView):
                         pass
 
             cluster = settings.MONGODB_CLIENT
-
-            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            # end_time = time.time()
-            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "find one collection from db")
 
             if not mongoDb:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            # start_time = time.time()
-            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            # end_time = time.time()
-            # print(f"find_one operation took: {measure_execution_time(start_time, end_time)} seconds", "mongodb_coll from db")
+            mongodb_coll = settings.METADATA_COLLECTION.find_one(
+                {"database_name": database, "collection_names": {"$in": [coll]}})
+
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
             new_db = cluster["datacube_" + database]
@@ -237,6 +245,10 @@ class DataCrudView(APIView):
             if operation not in ["update"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                
+            if data_type not in serializer.choose_data_type:
+                return Response({"success": False, "message": "Data type not allowed", "data": []},
+                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
             if payment:
                 res = check_api_key(api_key)
@@ -244,18 +256,81 @@ class DataCrudView(APIView):
                 if res != "success":
                     return Response(
                         {"success": False, "message": res,
-                         "data": []},
+                        "data": []},
                         status=status.HTTP_404_NOT_FOUND)
 
-            # start_time = time.time()
-            result = new_collection.update_many(query, {"$set": update_data})
-            # end_time = time.time()
-            # print(f"update_many operation took: {measure_execution_time(start_time, end_time)} seconds..")
+                existing_document_count = new_collection.count_documents(query)
 
+                if existing_document_count > 10000:
+                    return Response(
+                        {"success": False, "message": f"10,000 number of documents reached in '{coll}' collection",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                field_count = len(update_data)
+                if field_count > 10000:
+                    return Response({"success": False, "message": f"Number of fields exceeds the limit of 10,000 per document",
+                                    "data": []}, status=status.HTTP_400_BAD_REQUEST)
+                    
+            existing_document = new_collection.find_one(query)      
+
+            modified_count = 0
+            existing_operation = existing_document.get(key, {})     
+                            
+            if existing_document:         
+                for key, value in update_data.items():
+                    
+                    if key not in mongodb_coll['field_labels']:
+                        return Response(
+                        {"success": False, "message": f"New added field '{key}' is not registered in metadata collection",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+                    
+                    if not key.endswith("_operation") and not existing_document.get(key):
+                        existing_document[key] = update_data[key]
+                        insert_date_time_list = []
+                        date_time = dowell_time()
+                        insert_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                        insert_date_time_list.insert(0, insert_date_time)
+                        existing_document[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False, 'data_type':data_type}
+                            
+                for key, value in existing_document.items():                    
+                    if key.endswith("_operation"):
+                        existingValue = existing_document.get(key.replace('_operation', ''))
+                        updatedValue = update_data.get(key.replace('_operation', ''))
+                        isDeleted = existing_document.get(key).get('is_deleted')
+                        existing_operation = existing_document.get(key, {})
+                        
+                        if existing_operation["data_type"] == data_type:
+                            
+                            if existingValue != updatedValue and not isDeleted:
+                                if updatedValue is not None:  
+                                    date_time = dowell_time()
+                                    update_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                                    if isinstance(existing_operation, dict):  
+                                        existing_operation.setdefault("update_date_time", []).insert(0, update_date_time)
+                                    else:
+                                        existing_operation = {"update_date_time": [update_date_time]}  # If not a dictionary, create a new one
+                                
+                                    existing_document[key.replace('_operation', '')] = updatedValue
+                                    modified_count += 1
+                        else:
+                            return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{existing_operation['data_type']}' ",
+                                            "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
+                result = new_collection.replace_one({"_id": existing_document["_id"]}, existing_document)
+                modified_count = result.modified_count
+
+                                
             return Response(
-                {"success": True, "message": f"{result.modified_count} documents updated successfully!",
-                 "data": []},
+                {"success": True, "message": f"{modified_count} documents updated successfully!",
+                "data": []},
                 status=status.HTTP_200_OK)
+                
+        except ValidationError as ve:
+            return Response({"success": False, "message": str(ve), "data": []},
+                            status=status.HTTP_400_BAD_REQUEST)
+            
         except Exception as e:
             traceback.print_exc()
             return Response({"success": False, "message": str(e), "data": []},
@@ -270,6 +345,7 @@ class DataCrudView(APIView):
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
+            data_type = data.get('data_type')
             query = data.get('query', {})
             api_key = data.get('api_key')
 
@@ -280,48 +356,72 @@ class DataCrudView(APIView):
                     except Exception as ex:
                         print(ex)
                         pass
-            
+
             cluster = settings.MONGODB_CLIENT
 
-            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            # end_time = time.time()
-            # print(f"delete operation find one coll took: {measure_execution_time(start_time, end_time)} seconds for mongoDb")
 
             if not mongoDb:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
             mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
             new_db = cluster["datacube_" + database]
             new_collection = new_db[coll]
 
-            if operation not in ["delete"]:
+            if operation != "delete":
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
+                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                
+            if data_type not in serializer.choose_data_type:
+                return Response({"success": False, "message": "Data type not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
             res = check_api_key(api_key)
             if res != "success":
                 return Response(
                     {"success": False, "message": res,
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            # start_time = time.time()
-            result = new_collection.delete_many(query)
-            # end_time = time.time()
-            # print(f"delete operation took: {measure_execution_time(start_time, end_time)} seconds for delete")
+            existing_document = new_collection.find_one(query)
+            modified_count = 0
+            if existing_document:
+                for key, value in existing_document.items():
+                    if key.endswith("_operation"):
+                        # existingValue  = existing_document.get(key.replace('_operation', ''))
+                        # updatedValue  = query.get(key.replace('_operation', ''))
+                        existing_operation = existing_document.get(key, {})
+                        if existing_operation["data_type"]==data_type:
+                            isDeleted = existing_document.get(key).get('is_deleted')
+                            if not isDeleted:
+                                date_time = dowell_time()
+                                deleted_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                                existing_operation.setdefault("deleted_date_time", []).insert(0, deleted_date_time)
+                                existing_operation['is_deleted']=True
+                                # existing_operation["data_type"]=data_type
+                                
+                                result = new_collection.update_one(query, {"$set": {key: existing_operation}})   
+                                modified_count = result.modified_count
+                                
+                                if "deleted_date_time" not in existing_operation:
+                                    existing_operation["deleted_date_time"] = [deleted_date_time] 
+                        else:
+                            return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{existing_operation['data_type']}' ",
+                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)
+                               
 
             return Response(
-                {"success": True, "message": f"{result.deleted_count} documents deleted successfully!", "data": []},
+                {"success": True, "message": f"{modified_count} documents deleted successfully!",
+                "data": []},
                 status=status.HTTP_200_OK)
         except Exception as e:
             traceback.print_exc()
@@ -415,16 +515,17 @@ class GetDataView(APIView):
         try:
             serializer = InputGetSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-
             data = serializer.validated_data
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
+            data_type = data.get('data_type')
             api_key = data.get('api_key')
             filters = serializer.validated_data.get('filters', {})
             limit = int(data.get('limit')) if 'limit' in data else None
             offset = int(data.get('offset')) if 'offset' in data else None
             payment = data.get('payment', True)
+            
             for key, value in filters.items():
                 if key == "_id":
                     try:
@@ -433,29 +534,21 @@ class GetDataView(APIView):
                         print(ex)
                         pass
 
-            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
             cluster = settings.MONGODB_CLIENT
 
-            # start_time = time.time()
             mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            # end_time = time.time()
-            # print(f"fetch operation find one coll took: {measure_execution_time(start_time, end_time)} seconds for mongodb_coll")
 
             if not mongoDb:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            # start_time = time.time()
             mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            # end_time = time.time()
-            # print(f"fetch operation mongodb_coll took: {measure_execution_time(start_time, end_time)} seconds for mongodb_coll ")
-
             if not mongodb_coll:
                 return Response(
                     {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
+                    "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
             new_db = cluster["datacube_" + database]
@@ -464,14 +557,19 @@ class GetDataView(APIView):
             if operation not in ["fetch"]:
                 return Response({"success": False, "message": "Operation not allowed", "data": []},
                                 status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            
+            if data_type not in serializer.choose_data_type:
+                return Response({"success": False, "message": "Data type not allowed", "data": []},
+                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                
             if payment:
                 res = check_api_key(api_key)
                 if res != "success":
                     return Response(
                         {"success": False, "message": res,
-                         "data": []},
+                        "data": []},
                         status=status.HTTP_404_NOT_FOUND)
-
+                    
             result = None
             if operation == "fetch":
                 query = new_collection.find(filters)
@@ -479,21 +577,55 @@ class GetDataView(APIView):
                     query = query.skip(offset)
                 if limit is not None:
                     query = query.limit(limit)
-                result = query
-            result = list(result)
-            for doc in result:
-                doc['_id'] = str(doc['_id'])
-            if len(result) > 0:
+                result = list(query)
+                for doc in result:
+                    doc['_id'] = str(doc['_id'])
+                    date_time = dowell_time()
+                    fetch_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    keys_to_delete = []
+                    for key in list(doc.keys()):
+                        if key.endswith("_operation"):
+                            operation_data = doc[key]
+                            if doc[key]['data_type']==data_type:
+                                
+                                if operation_data.get("is_deleted", False):
+                                    keys_to_delete.append(key)
+                                    keys_to_delete.append(key[:-len("_operation")])
+                                elif not 'fetch_date_time' in operation_data:
+                                    operation_data['fetch_date_time'] = [fetch_date_time]
+                                    update_query = {
+                                        "$set": {
+                                            key + ".fetch_date_time": operation_data["fetch_date_time"]
+                                        }
+                                    }
+                                    new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
+                                elif 'fetch_date_time' in operation_data and not operation_data["is_deleted"]:
+                                    operation_data['fetch_date_time'].insert(0, fetch_date_time)
+                                    update_query = {
+                                        "$set": {
+                                            key + ".fetch_date_time": operation_data["fetch_date_time"]
+                                        }
+                                    }
+                                    new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
+                            else:
+                                return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{doc[key]['data_type']}' ",
+                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
+                    for key in keys_to_delete:
+                        if key in doc:
+                            del doc[key]
+
+            if len(result) > 0 and all("_id" in doc and len(doc) > 1 for doc in result):
                 msg = "Data found!"
             else:
                 msg = "No data exists for this query/collection"
-
+                return Response({"success": True, "message": msg, "data": []}, status=status.HTTP_200_OK)
+            
             return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
 
         except Exception as e:
             traceback.print_exc()
-            return Response({"success": False, "message": str(e), "data": []},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CollectionView(APIView):

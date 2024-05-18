@@ -446,6 +446,7 @@ class LoadMongoCollection(APIView):
             sort = request.data.get("sort", "asc").strip()
             filter_query = request.data.get("filter", "").strip().replace("'", "\"")
             filter = json.loads(filter_query) if filter_query else {}
+            # filter.setdefault('is_deleted', False)
 
             if "_id" in filter:
                 try:

@@ -12,7 +12,10 @@ from django.http import HttpResponse
 from rest_framework.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST)
 
 from .helper import run_backup, run_restore
-
+import traceback
+import requests
+from rest_framework.response import Response
+from rest_framework import status
 
 class MongoDatabases:
     def __init__(self):
@@ -398,3 +401,22 @@ class MongoDatabases:
         result = collection.insert_one(document)
         print("Inserted document ID:", result.inserted_id)
 
+#### dowell_time_api for date & time
+def dowell_time():
+    try:
+        url = "https://100009.pythonanywhere.com/dowellclock/"
+        payload = json.dumps({
+            "timezone": "Asia/Kolkata",
+        })
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.post(url, headers=headers, data=payload)
+        if response.status_code == 200:
+            return json.loads(response.text)
+        else:
+            return "Error: Unable to fetch time for the given timezone."
+    except Exception as e:
+        traceback.print_exc()
+        return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)

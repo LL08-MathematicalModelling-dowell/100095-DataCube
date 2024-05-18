@@ -17,6 +17,8 @@ urlpatterns = [
     path('retrieve_metadata/', views.retrieve_metadata, name='retrieve_metadata'),
     path('collections/<str:dbname>', views.retrieve_collections, name='retrieve_collections'),
     path('add_collections/<str:dbname>', views.add_collections, name='add_collections'),
+    path('retrieve_fields/<str:dbname>', views.retrieve_fields, name='retrieve_fields'),
+    path('add_fields/<str:dbname>', views.add_fields, name='add_fields'),
     path('settings/', views.settings_view, name='settings'),
 
 ]

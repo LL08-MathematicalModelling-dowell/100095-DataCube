@@ -18,6 +18,7 @@
                 <th scope="col">Number of Fields</th>
                 <th scope="col">Added By</th>
                 <th scope="col">Collections</th>
+                <th scope="col">Fields</th>
             </tr>
         </thead>
         <tbody>
@@ -28,7 +29,8 @@
                 <td>{{ record.number_of_documents }}</td>
                 <td>{{ record.number_of_fields }}</td>
                 <td>{{ record.added_by }}</td>
-            <td> <a href="/collections/{{ record.database_name }}" class="btn btn-primary"> View Collections</a></td>
+                <td> <a href="/collections/{{ record.database_name }}" class="btn btn-primary"> View Collections</a></td>
+                <td> <a href="/retrieve_fields/{{ record.database_name }}" class="btn btn-primary"> View Fields</a></td>
             </tr>
             {% endfor %}
         </tbody>

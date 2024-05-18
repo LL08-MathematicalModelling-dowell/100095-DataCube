@@ -41,7 +41,7 @@
                             <form id="meta-form" action="{% url 'home:metadata' %}" method="post">
                                 {% csrf_token %}
                                 <div class="row">
-                                    <div class="col-md-4">
+                                    <div class="col-md-5">
                                         <label for="databaseName">
                                             <h6>Database Name:</h6>
                                         </label>
@@ -88,22 +88,13 @@
 
                                 <br>
 
-                                <div class="form-group">
-                                    <label for="numCollections">
-                                        <h6>Number of Collections (1-10000):</h6>
-                                    </label>
-                                    <input type="number" id="numCollections" name="numCollections" min="1" max="10000"
-                                        required>
-                                </div>
-                                <br>
-
                                 <div class="row">
                                     <div class="col-md-5">
                                         <label for="colNames">
-                                            <h6>Collection Names (comma-separated):</h6>
+                                            <h6>Collection Names <br> (comma-separated):</h6>
                                         </label>
                                     </div>
-                                    <div class="col-md-7">
+                                    <div class="col-md-7 m-0">
                                         <div class="form-group">
                                             <input type="text" class="form-control border border-dark" id="colNames"
                                                 name="colNames" pattern="^[a-zA-Z0-9_,]+$" required>
@@ -134,41 +125,38 @@
 
                                 <br>
 
-                                <div class="form-group">
-                                    <label for="numDocuments">
-                                        <h6>Number of Documents (1-10000):</h6>
-                                    </label>
-                                    <input type="number" id="numDocuments" name="numDocuments" min="1" max="10000"
-                                        required>
-                                </div>
-                                <br>
-
-                                <div class="form-group">
-                                    <label for="numFields">
-                                        <h6>Number of Fields (1-10000):</h6>
-                                    </label>
-                                    <input type="number" id="numFields" name="numFields" min="1" max="10000" required>
-                                </div>
-                                <br>
-
-                                <div class="form-group">
-                                    <label for="fieldLabels">
-                                        <h6>Field Labels (comma-separated):</h6>
-                                    </label>
-                                    <input type="text" id="fieldLabels" name="fieldLabels" required>
+                                <div class="row">
+                                    <div class="col-md-5 m-0">
+                                        <label for="fieldLabels">
+                                            <h6>Field Labels <br> (comma-separated):</h6>
+                                        </label>
+                                        
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="form-group">
+                                            <input type="text" id="fieldLabels" name="fieldLabels" class="form-control border border-dark" required>
+                                        </div>
+                                    </div>
+                                    
                                 </div>
 
-                                <div>
-                                    <label for="fieldLabels" class="mt-3">
-                                        <h6>Select Region:</h6>
-                                    </label>
-                                    <select name="selected_region" class="form-select form-select-lg mr-3 branch_s border border-dark"
-                                            style="background-color: white; color: black;" required>
-                                        {% comment %} <option value="" disabled>Select Region</option> {% endcomment %}
-                                        {% for region in regions %}
-                                            <option value="{{ region.id }}" {% if region == 'india' %} selected {% endif %}>{{ region.country }}</option>
-                                        {% endfor %}
-                                    </select>
+                                <div class="row">
+                                    <div class="col-md-5 m-0">
+                                        <label for="fieldLabels">
+                                            <h6>Select Region:</h6>
+                                        </label>
+                                    </div>
+                                    <div class="col-md-7 m-0">
+                                        <div class="form-group">
+                                            <select name="selected_region" class="form-select form-select-lg mr-3 branch_s border border-dark"
+                                                    style="background-color: white; color: black;" required>
+                                                {% comment %} <option value="" disabled>Select Region</option> {% endcomment %}
+                                                {% for region in regions %}
+                                                    <option value="{{ region.id }}" {% if region == 'india' %} selected {% endif %}>{{ region.country }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                                 
 
@@ -198,63 +186,34 @@
             printError("metaError", "");
         });
 
-        $('#numCollections').keypress(function () {
-            printError("metaError", "");
-        });
-
         $('#colNames').keypress(function () {
             printError("metaError", "");
         });
 
-        $('#numDocuments').keypress(function () {
-            printError("metaError", "");
-        });
-
-        $('#numFields').keypress(function () {
-            printError("metaError", "");
-        });
 
         $('#fieldLabels').keypress(function () {
             printError("metaError", "");
         });
 
+
         $('#meta-form').submit(function validateForm() {
             var databaseName = $("#databaseName").val();
-            var numCollections = parseInt($("#numCollections").val());
             var colNames = $("#colNames").val();
-            var numDocuments = parseInt($("#numDocuments").val());
-            var numFields = parseInt($("#numFields").val());
             var fieldLabels = $("#fieldLabels").val();
-
+        
             // Database Name validation
             if (databaseName.includes(" ")) {
                 printError("metaError", "Error: Database Name should not contain spaces.");
                 return false;
             }
-
-            // Collection Names validation
-            { #var colNamesArray = colNames.split(",");# }
-            { #colNamesArray = colNamesArray.map(label => label.trim());# }
-            {## }
-            {
-                #if(colNamesArray.length !== numCollections) {# }
-                {#    printError("metaError", `Error: Number of Collection Names should be equal to the Number of Collections (${numCollections}).`);# }
-                {#    return false;# }
-                {## }
-                {## }
-                {## }
-                {#// Field Labels validation#}
-                    { #var fieldLabelsArray = fieldLabels.split(",");# }
-                    { #fieldLabelsArray = fieldLabelsArray.map(label => label.trim());# }
-                    {## }
-                    {
-                        #if(fieldLabelsArray.length !== numFields) {# }
-                        {#    printError("metaError", `Error: Number of Field Labels should be equal to the Number of Fields (${numFields}).`);# }
-                        {#    return false;# }
-                        {## }
-
-                        return true; // Allow form submission
-                    });
+        
+            // Field Labels validation
+            var fieldLabelsArray = fieldLabels.split(",");
+            fieldLabelsArray = fieldLabelsArray.map(label => label.trim());
+        
+            return true; // Allow form submission
+        });
+        
     </script>
     {% include 'includes/footer.html' %}
 </div>
