@@ -52,7 +52,7 @@ def index(request):
             # if 'india' not in final_region_list:
             #     final_region_list.append('india')
                 
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False, "regions": region_list}
                 html_template = loader.get_template('home/metadata.html')
                 return HttpResponse(html_template.render(context, request))
@@ -85,7 +85,7 @@ def data_view(request):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": session_id})
             user = json.loads(resp.text)
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 is_admin = False
 
                 mongodb = MongoDatabases()
@@ -94,7 +94,7 @@ def data_view(request):
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
-                databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+                databases = coll.find({"userID": user.get("userinfo", {}).get("userID")}, {"database_name": 1})
                 databases = [x.get('database_name') for x in databases]
 
                 collections = []
@@ -126,7 +126,7 @@ def metadata_view(request):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 if request.method == 'POST':
                     
                     cluster = settings.MONGODB_CLIENT
@@ -144,8 +144,8 @@ def metadata_view(request):
                         "field_labels": request.POST.get('fieldLabels').split(','),
                         "collection_names": request.POST.get('colNames').split(','),
                         "region_id": str(request.POST.get('selected_region')),
-                        "added_by": user.get("userinfo", {}).get("username"),
-                        "session_id": request.session.get("session_id"),
+                        "userID": user.get("userinfo", {}).get("userID"),
+                        # "session_id": request.session.get("session_id"),
                     }
 
                     database = coll.find_one({"database_name": str(request.POST.get('databaseName').lower())})
@@ -207,14 +207,14 @@ def retrieve_metadata(request):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
 
                 # Query MongoDB for metadata records associated with the user ID
-                metadata_records = coll.find({"added_by": user.get("userinfo", {}).get("username"), })
+                metadata_records = coll.find({"userID": user.get("userinfo", {}).get("userID"), })
 
                 records = []
                 for record in metadata_records:
@@ -232,8 +232,8 @@ def retrieve_metadata(request):
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
-                user = request.user
-                is_admin = user.is_superuser
+                
+                is_admin = False
                 context = {'page': 'Retrieve Metadata', 'segment': 'metadata', 'is_admin': is_admin, 'records': records}
                 html_template = loader.get_template('home/retrieve_metadata.html')
                 return HttpResponse(html_template.render(context, request))
@@ -251,7 +251,7 @@ def retrieve_collections(request, dbname):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
@@ -260,7 +260,7 @@ def retrieve_collections(request, dbname):
 
                 # Query MongoDB for metadata records associated with the user ID and the specified 'dbname'
                 metadata_records = coll.find(
-                    {"added_by": user.get("userinfo", {}).get("username"), "database_name": dbname})
+                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname})
 
                 records = []
                 collection_names = []
@@ -300,14 +300,14 @@ def retrieve_fields(request, dbname):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
 
                 metadata_records = coll.find(
-                    {"added_by": user.get("userinfo", {}).get("username"), "database_name": dbname})
+                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname})
 
                 records = []
                 field_names = []
@@ -327,7 +327,7 @@ def retrieve_fields(request, dbname):
 
                 for name in field_names:
                     field_names=name
-                user = request.user
+                
                 is_admin = False
                 context = {'page': 'Retrieve Fields', 'segment': 'metadata', 'is_admin': is_admin,
                            'records': records,
@@ -351,7 +351,7 @@ def add_collections(request, dbname):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 if request.method == 'POST':
                     
                     cluster = settings.MONGODB_CLIENT
@@ -385,7 +385,7 @@ def add_collections(request, dbname):
                             "database_name": dbname,
                             "collection_names": final_data["collection_names"],
                             "number_of_collections": final_data["number_of_collections"],
-                            "added_by": final_data["added_by"]
+                            "userID": final_data["userID"]
                         })
 
                     return redirect('home:retrieve_collections', dbname=dbname)
@@ -409,7 +409,7 @@ def add_fields(request, dbname):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 if request.method == 'POST':
                     
                     cluster = settings.MONGODB_CLIENT
@@ -463,7 +463,7 @@ def settings_view(request):
             url = "https://100014.pythonanywhere.com/api/userinfo/"
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
-            if user.get("userinfo", {}).get("username"):
+            if user.get("userinfo", {}).get("userID"):
                 if request.method == 'POST':
                     
                     cluster = settings.MONGODB_CLIENT
@@ -476,7 +476,7 @@ def settings_view(request):
                     file = request.FILES.get('fileToImport')
                     collection_names = []
                     metadata_records = coll.find(
-                    {"added_by": user.get("userinfo", {}).get("username"), "database_name": database_name})
+                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": database_name})
 
                     for record in metadata_records:
                         collection_names = record['collection_names']
@@ -490,8 +490,8 @@ def settings_view(request):
                         "number_of_documents": 1,
                         "field_labels": field_labels,
                         "number_of_fields": len(field_labels),
-                        "added_by": user.get("userinfo", {}).get("username"),
-                        "session_id": request.session.get("session_id"),
+                        "userID": user.get("userinfo", {}).get("userID"),
+                        # "session_id": request.session.get("session_id"),
                     }
 
                     database = coll.find_one({"database_name": database_name})
@@ -524,7 +524,7 @@ def settings_view(request):
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
-                databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+                databases = coll.find({"userID": user.get("userinfo", {}).get("userID")}, {"database_name": 1})
                 databases = [x.get('database_name') for x in databases]
 
                 collections = []

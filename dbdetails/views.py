@@ -296,7 +296,7 @@ class GetCollections(APIView):
             cluster = settings.MONGODB_CLIENT
             db = cluster["datacube_metadata"]
             coll = db['metadata_collection']
-            databases_from_db = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
+            databases_from_db = coll.find({"userID": user.get("userinfo", {}).get("userID")}, {"database_name": 1})
             databasesDB = [x.get('database_name') for x in databases_from_db]
 
             collections = []
