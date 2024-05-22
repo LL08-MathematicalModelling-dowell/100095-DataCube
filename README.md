@@ -19,7 +19,7 @@ There are two main steps to use DoWell DataCube
 
 
 ## Step 1: Add request for database
-To submit a request for the database, please begin by logging into DataCube. You can access the login page by clicking on the following link: [DataCube Login](https://datacube.uxlivinglab.online/). <br>
+To submit a request for the database, please begin by logging into DataCube. You can access the login page by clicking on the following link: [DataCube Login](https://uxlive.online/). <br>
 Once you have successfully logged in, you will be redirected to the dashboard. From there, you can enter your request for the database.
 
 ![Dashboard](screenshots/dashboard.jpg)
@@ -27,13 +27,20 @@ Once you have successfully logged in, you will be redirected to the dashboard. F
 <br>
 After submitting your request for the database, you'll have the ability to view the created database and its associated collections. <br>
 By clicking on "View Collection," you can access and inspect all the collections within the relevant database. <br>
-Moreover, you also have the option to add additional collections to the database if needed
+Moreover, you also have the option to add additional collections and fields to the database if needed
+
 ![Metadata Records](screenshots/metadata_record.jpg)
+
+ADD NEW COLLECTION
 ![Add Collections](screenshots/add_collections_to_database.jpg)
+
+ADD NEW FIELD
+![Add fields](screenshots/add_fields_to_database.jpg)
 <br>
 <br>
-You also have the option to import JSON or CSV files to add documents to a collection.
-![Import File](screenshots/import_file.jpg)
+* import JSON or CSV files feature under development**
+<!-- You also have the option to import JSON or CSV files to add documents to a collection.
+![Import File](screenshots/import_file.jpg) -->
 <br>
 <br>
 
@@ -41,16 +48,27 @@ You can also view the data in a data view by selecting the database and collecti
 ![Data View](screenshots/data_view.jpg)
 <br>
 <br>
+
 After adding the database and collection, you can now utilize APIs to add, retrieve, and update data within the database.
 
 ## Step 2: Use Database using APIs
-Click here to read the documentation in postman [Documentation](https://documenter.getpostman.com/view/29895764/2s9YRB1WyN)
 
 # API Detailed Documentation
 =============================================================================
+## Allow Data Types
+```
+"data_type": "real_data" 
+       
+"data_type": "testing_data" 
+    
+"data_type": "learning_data" 
+   
+"data_type": "deleted_data"  
+```
+
 ## Fetch Data Using the API
 
-### URL: https://datacube.uxlivinglab.online/db_api/get_data/
+### URL: https://uxlive.online/db_api/get_data/
 ### Method: POST
 
 This API enables you to retrieve data from a specific collection in the Dowell database based on a query.
@@ -63,8 +81,9 @@ This API enables you to retrieve data from a specific collection in the Dowell d
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "fetch",
+    "data_type": "real_data",
     "filters": {
-         "_id": "101001010101"
+         "_id": "664cf185ac91b6cab59e64f9"
     },
     "limit": 1,
     "offset": 0
@@ -77,6 +96,7 @@ This API enables you to retrieve data from a specific collection in the Dowell d
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection to fetch data from.
 - `operation`: The operation type, which is "fetch" for this request.
+- `data_type`: The data type, which is "real_data" for this request.
 - `filters`: A JSON object specifying the query criteria.
 - `limit` (optional): The maximum number of records to retrieve per page.
 - `offset` (optional): The page number for pagination.
@@ -87,14 +107,15 @@ This API enables you to retrieve data from a specific collection in the Dowell d
 import requests
 import json
 
-url = "https://datacube.uxlivinglab.online/db_api/get_data/"
+url = "https://uxlive.online/db_api/get_data/"
 
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "fetch",
-    "filters": {"_id": "101001010101"},
+    "data_type": "real_data",
+    "filters": {"_id": "664cf185ac91b6cab59e64f9"},
     "limit": 1,
     "offset": 0
 }
@@ -110,7 +131,7 @@ print(response.text)
 
 ## Insert Data
 
-### URL: https://datacube.uxlivinglab.online/db_api/crud/
+### URL: https://uxlive.online/db_api/crud/
 ### Method: POST
 
 Use this API to add data to a specific collection within the Dowell database.
@@ -123,14 +144,11 @@ Use this API to add data to a specific collection within the Dowell database.
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "insert",
+    "data_type": "real_data",
     "data": {
-        "id": "101001010101",
-        "info": {"name": "dowell"},
-        "records": [{
-            "record": "1",
-            "type": "overall"
-        }]
-    }
+        "first_name":"milan",
+        "last_name":"jakhaniya"
+  }
 }
 ```
 
@@ -140,6 +158,7 @@ Use this API to add data to a specific collection within the Dowell database.
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection for data insertion.
 - `operation`: The operation type, which is "insert" for this request.
+- `data_type`: The data type, which is "real_data" for this request.
 - `data`: The data to be inserted as a JSON object.
 
 #### Example of Inserting Data in Python
@@ -148,21 +167,18 @@ Use this API to add data to a specific collection within the Dowell database.
 import requests
 import json
 
-url = "https://datacube.uxlivinglab.online/db_api/crud/"
+url = "https://uxlive.online/db_api/crud/"
 
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test5",
     "operation": "insert",
+    "data_type": "real_data",
     "data": {
-    "id": "101001010101",
-    "info": {'name': "dowell"},
-    "records": [{
-        "record": "1",
-        "type": "overall"
-    }]
-}
+        "first_name":"milan",
+        "last_name":"jakhaniya"
+  }
 }
 
 response = requests.post(url, json=data)
@@ -176,11 +192,11 @@ print(response.text)
 
 **Note: If a user tries to add more than 10,000 documents in the same collection, the following error will be received:**
 
-For error: `{"message": "Sorry, You can not allow to add more than 10,000 documents."}`
+For error: `{"message": "Sorry, 10,000 number of documents reached in 'your collection name'"}`
 
 ## Update Data
 
-### URL: https://datacube.uxlivinglab.online/db_api/crud/
+### URL: https://uxlive.online/db_api/crud/
 ### Method: PUT
 
 Use this API to update data in a specific collection within the Dowell database.
@@ -193,14 +209,10 @@ Use this API to update data in a specific collection within the Dowell database.
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "update",
-    "query": {"_id": "64f6fac8ac03855a010559f2"},
+    "data_type": "real_data",
+    "query": {"_id": "664cf185ac91b6cab59e64f9"},
     "update_data": {
-        "id": "101001010101",
-        "info": {"name": "dowell"},
-        "records": [{
-            "record": "1",
-            "type": "overall_updated"
-        }]
+        "age":"36"
     }
 }
 ```
@@ -211,6 +223,7 @@ Use this API to update data in a specific collection within the Dowell database.
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection to update data in.
 - `operation`: The operation type, which is "update" for this request.
+- `data_type`: The data type, which is "real_data" for this request.
 - `query`: Query or filter the record you want to update.
 - `update_data`: The data to be updated, is provided as a JSON object.
 
@@ -220,22 +233,18 @@ Use this API to update data in a specific collection within the Dowell database.
 import requests
 import json
 
-url = "https://datacube.uxlivinglab.online/db_api/crud/"
+url = "https://uxlive.online/db_api/crud/"
 
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "update",
-    "query" : {"_id": "64f6fac8ac03855a010559f2"}
+    "data_type": "real_data",
+    "query" : {"_id": "664cf185ac91b6cab59e64f9"}
     "update_data": {
-    "id": "101001010101",
-    "info": {'name': "dowell"},
-    "records": [{
-        "record": "1",
-        "type": "overall_updated"
-    }]
-}
+        "age":"36"
+    }
 }
 
 response = requests.put(url, json=data)
@@ -250,7 +259,7 @@ print(response.text)
 
 ## Delete Data
 
-### URL: https://datacube.uxlivinglab.online/db_api/crud/
+### URL: https://uxlive.online/db_api/crud/
 ### Method: DELETE
 
 Use this API to remove data from a specific collection within the Dowell database.
@@ -263,8 +272,9 @@ Use this API to remove data from a specific collection within the Dowell databas
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "delete",
+    "data_type": "real_data",
     "query": {
-        "id": "101001010101"
+        "id": "664cf185ac91b6cab59e64f9"
     }
 }
 ```
@@ -275,6 +285,7 @@ Use this API to remove data from a specific collection within the Dowell databas
 - `db_name`: The name of the database.
 - `coll_name`: The name of the collection from which data will be deleted.
 - `operation`: The operation type, which is "delete" for this request.
+- `data_type`: The data type, which is "real_data" for this request.
 - `query`: Query or filter the record you want to delete.
 
 #### Example of Deleting Data in Python
@@ -282,15 +293,16 @@ Use this API to remove data from a specific collection within the Dowell databas
 ```python
 import requests
 import json
-url = "https://datacube.uxlivinglab.online/db_api/crud/"
+url = "https://uxlive.online/db_api/crud/"
 
 data = {
     "api_key": "your-dowell-api-key",
     "db_name": "dowell",
     "coll_name": "test",
     "operation": "delete",
+    "data_type": "real_data",
     "query": {
-        "_id": "64f6fac8ac03855a010559f2",
+        "_id": "664cf185ac91b6cab59e64f9",
     }
 
 }
@@ -306,60 +318,6 @@ print(response.text)
 
 ```markdown
 
-### Add Collection to Database
-
-### URL: https://datacube.uxlivinglab.online/db_api/add_collection/
-### Method: POST
-
-The Metadata View API allows you to add collections to a specified database within the DoWell DataCube platform. This API provides endpoints for adding and managing collections, making it a powerful tool for data organization and management.
-
-#### Request Data / API Payload
-
-```json
-{
-    "api_key": "your-dowell-api-key",
-    "db_name": "dowell",
-    "coll_names": "Collection_4",
-    "num_collections": 1
-}
-```
-#### Parameters
-
-- `api_key` (required): Your Dowell API key.
-- `db_name`: The name of the database.
-- `coll_names`: The name of the collection for add in existing database.
-- `num_collections`: as per usecase give num of collections
-
-#### Response:
-
-```json
-{
-    "success": true,
-    "message": "Collection added successfully!",
-    "data": []
-}
-```
-
-
-## Add Collection to Database
-
-### Example of Add Collection to Database in Python
-
-```python
-import requests
-
-url = "https://datacube.uxlivinglab.online/db_api/add_collection/"
-
-data_to_add = {
-    "api_key": "your-dowell-api-key",
-    "db_name": "doWell",
-    "coll_names": "Collection_4",
-    "num_collections": 1
-}
-
-response = requests.post(url, json=data_to_add)
-print(response.text)
-```
 
 ### Response Codes
 
