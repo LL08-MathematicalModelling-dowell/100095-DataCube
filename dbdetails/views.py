@@ -446,7 +446,6 @@ class LoadMongoCollection(APIView):
             sort = request.data.get("sort", "asc").strip()
             filter_query = request.data.get("filter", "").strip().replace("'", "\"")
             filter = json.loads(filter_query) if filter_query else {}
-            # filter.setdefault('is_deleted', False)
 
             if "_id" in filter:
                 try:
@@ -463,7 +462,7 @@ class LoadMongoCollection(APIView):
 
             offset = (page - 1) * per_page
             client = settings.MONGODB_CLIENT
-            database = client["datacube_"+ database_name]
+            database = client["datacube_" + database_name]
 
             if collection_name not in database.list_collection_names():
                 return JsonResponse({"message": f"Collection '{collection_name}' does not exist in '{database_name}'"}, status=404)
@@ -471,12 +470,35 @@ class LoadMongoCollection(APIView):
             collection = database[collection_name]
 
             try:
-                data = collection.find(filter).sort([("_id", pymongo.ASCENDING if sort == "asc" else pymongo.DESCENDING)]).skip(offset).limit(per_page)
-                total = collection.count_documents(filter)
-                list_cur = list(data)
-                json_data = dumps(list_cur)
-                context = {"json_data": json_data, "page": page, "per_page": per_page, "total": total}
+                data_cursor = collection.find(filter).sort([("_id", pymongo.ASCENDING if sort == "asc" else pymongo.DESCENDING)])
+                total_filtered_count = 0
+                filtered_data = []
+
+                for doc in data_cursor:
+                    filtered_doc = {"_id": doc["_id"]}
+                    keep_document = False
+
+                    for key, value in doc.items():
+                        if key.endswith("_operation"):
+                            isDeleted = value.get('is_deleted', False)
+                            related_key = key.replace('_operation', '')
+
+                            if not isDeleted:
+                                if related_key in doc:
+                                    filtered_doc[related_key] = doc[related_key]
+                                filtered_doc[key] = value
+                                keep_document = True
+
+                    if keep_document:
+                        filtered_data.append(filtered_doc)
+                        total_filtered_count += 1
+
+                paginated_data = filtered_data[offset:offset + per_page]
+
+                json_data = dumps(paginated_data)
+                context = {"json_data": json_data, "page": page, "per_page": per_page, "total": total_filtered_count}
                 return JsonResponse(context, status=200)
+
             except Exception as e:
                 return JsonResponse({"message": f"Error retrieving data: {str(e)}"}, status=400)
 
