@@ -10,6 +10,7 @@ import requests
 from django.conf import settings
 from dbdetails.script import MongoDatabases
 from django.contrib import messages
+import pandas as pd
 
 def login_view(request):
     try:
@@ -128,37 +129,55 @@ def metadata_view(request):
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("userID"):
                 if request.method == 'POST':
-                    
                     cluster = settings.MONGODB_CLIENT
                     db = cluster["datacube_metadata"]
                     coll = db['metadata_collection']
 
+                    collection_names = request.POST.get('colNames').split(',')
+                    if len(collection_names) > 10000:
+                        error_msg = "Not allowed more than 10,000 collections"
+                        context = {
+                            'page': 'Add Metadata',
+                            'segment': 'index',
+                            'is_admin': False,
+                            'error_message': error_msg,
+                        }
+                        html_template = loader.get_template('home/metadata.html')
+                        return HttpResponse(html_template.render(context, request))
+
                     final_data = {
-                        # "number_of_collections": int(request.POST.get('numCollections')),
                         "number_of_collections": 10000,
                         "database_name": str(request.POST.get('databaseName').lower()),
-                        # "number_of_documents": int(request.POST.get('numDocuments')),
                         "number_of_documents": 10000,
-                        # "number_of_fields": int(request.POST.get('numFields')),
                         "number_of_fields": 10000,
                         "field_labels": request.POST.get('fieldLabels').split(','),
-                        "collection_names": request.POST.get('colNames').split(','),
+                        "collection_names": collection_names,
                         "region_id": str(request.POST.get('selected_region')),
                         "userID": user.get("userinfo", {}).get("userID"),
-                        # "session_id": request.session.get("session_id"),
                     }
 
-                    database = coll.find_one({"database_name": str(request.POST.get('databaseName').lower())})
-                    
+                    total_coll_count = 10
+                    count = len(final_data["collection_names"])
+                    for i in range(total_coll_count+1):
+                        # count = len(final_data["collection_names"]) + i
+                        if i > count:
+                            untitled_coll = f'untitled_coll_{i}'
+                            final_data["collection_names"].append(untitled_coll)
+
+                    database = coll.find_one({"database_name": final_data["database_name"]})
+
                     coll_region = db['region_collection']
                     db_region_list = coll_region.find({"is_active": True})
-                    region_list = []
-                    for i in db_region_list:
-                        region_list.append({"country": i["country"], "id": str(i["_id"])})
-                    
+                    region_list = [{"country": i["country"], "id": str(i["_id"])} for i in db_region_list]
+
                     if database:
-                        context = {'page': 'Add Metadata', 'segment': 'index', 'is_admin': False, 'regions': region_list,
-                                   'error_message': 'Database with the same name already exists!'}
+                        context = {
+                            'page': 'Add Metadata',
+                            'segment': 'index',
+                            'is_admin': False,
+                            'regions': region_list,
+                            'error_message': 'Database with the same name already exists!'
+                        }
                         html_template = loader.get_template('home/metadata.html')
                         return HttpResponse(html_template.render(context, request))
                     else:
@@ -170,33 +189,17 @@ def metadata_view(request):
                 db = cluster["datacube_metadata"]
                 coll = db['region_collection']
                 db_region_list = coll.find({"is_active": True})
-                region_list = []
-                for i in db_region_list:
-                    region_list.append({"country": i["country"], "id": str(i["_id"])})
-
-                # region_url = "https://100074.pythonanywhere.com/get-countries-v3/"
-                # region_list_response = requests.post(region_url)
-                # region_list_data = json.loads(region_list_response.content.decode("utf-8"))
-
-                # region_list = region_list_data['data'][0]['countries']
-
-                # final_region_list = []
-                # for db_region in db_region_list:
-                #     if db_region.lower() in [region.lower() for region in region_list]:
-                #         final_region_list.append(db_region.lower())
-
-                # if 'india' not in final_region_list:
-                #     final_region_list.append('india')
+                region_list = [{"country": i["country"], "id": str(i["_id"])} for i in db_region_list]
 
                 context = {'page': 'Add Metadata', 'segment': 'metadata', 'is_admin': False, 'regions': region_list}
                 html_template = loader.get_template('home/metadata.html')
                 return HttpResponse(html_template.render(context, request))
             else:
                 return redirect(f"{settings.MY_BASE_URL}/logout/")
-
         else:
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
-    except:
+    except Exception as e:
+        # Ideally log the exception here for debugging
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
 
@@ -260,7 +263,7 @@ def retrieve_collections(request, dbname):
 
                 # Query MongoDB for metadata records associated with the user ID and the specified 'dbname'
                 metadata_records = coll.find(
-                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname})
+                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}).sort("collection_names")
 
                 records = []
                 collection_names = []
@@ -353,7 +356,6 @@ def add_collections(request, dbname):
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("userID"):
                 if request.method == 'POST':
-                    
                     cluster = settings.MONGODB_CLIENT
                     db = cluster["datacube_metadata"]
                     coll = db['metadata_collection']
@@ -363,7 +365,8 @@ def add_collections(request, dbname):
                         "collection_names": request.POST.get('colNames').split(','),
                         "added_by": user.get("userinfo", {}).get("username"),
                     }
-
+                        
+                    
                     # Check if the provided 'dbname' exists in the 'database_name' field
                     collections = coll.find_one({"database_name": dbname})
 
@@ -374,6 +377,10 @@ def add_collections(request, dbname):
 
                         # Combine and remove duplicates
                         updated_collections = list(set(existing_collections + new_collections))
+                        
+                        if len(updated_collections) > 10000:
+                            messages.error(request, "Limit Exceeded: You can only add 10000 collections")
+                            return redirect('home:retrieve_collections', dbname=dbname)
 
                         coll.update_one(
                             {"database_name": dbname},
@@ -390,9 +397,7 @@ def add_collections(request, dbname):
 
                     return redirect('home:retrieve_collections', dbname=dbname)
 
-                user = request.user
-                is_admin = user.is_superuser
-                context = {'page': 'Add Collections', 'segment': 'metadata', 'is_admin': is_admin, 'dbname': dbname}
+                context = {'page': 'Add Collections', 'segment': 'metadata', 'is_admin': False, 'dbname': dbname}
 
                 return render(request, 'home/collections.html', context)
             else:
@@ -454,6 +459,89 @@ def add_fields(request, dbname):
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+
+
+@csrf_exempt
+def upload_csv_collections(request, dbname):
+    try:
+        if request.session.get("session_id"):
+            url = "https://100014.pythonanywhere.com/api/userinfo/"
+            resp = requests.post(url, data={"session_id": request.session["session_id"]})
+            user = json.loads(resp.text)
+            if user.get("userinfo", {}).get("userID"):
+                if request.method == 'POST':
+                    file = request.FILES.get('fileToImport')
+                    if file:
+                        cluster = settings.MONGODB_CLIENT
+                        db = cluster["datacube_metadata"]
+                        coll = db['metadata_collection']
+
+                        # Check if the database entry exists, if not create one
+                        db0 = coll.find_one_and_update(
+                            {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
+                            {"$setOnInsert": {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}},
+                            upsert=True,
+                            return_document=True
+                        )
+
+                        df = pd.read_csv(file)
+                        collection_names = df.columns.tolist()
+
+                        existing_collection_names = db0.get("collection_names", [])
+                        new_collection_names = [name for name in collection_names if name not in existing_collection_names]
+
+                        # Create a list to hold the updated collection names
+                        updated_collection_names = existing_collection_names[:]
+
+                        # Replace untitled collections with new collection names without changing the order
+                        untitled_index = 0
+                        for i in range(len(updated_collection_names)):
+                            if updated_collection_names[i].startswith('untitled_coll_') and untitled_index < len(new_collection_names):
+                                updated_collection_names[i] = new_collection_names[untitled_index]
+                                untitled_index += 1
+
+                        # Add remaining new collections if there's space
+                        remaining_new_collections = new_collection_names[untitled_index:]
+                        updated_collection_names.extend(remaining_new_collections)
+
+                        # Ensure no duplicates and limit to 10,000
+                        updated_collection_names = list(dict.fromkeys(updated_collection_names))[:10000]
+
+                        if len(updated_collection_names) > 10000:
+                            messages.error(request, "Limit Exceeded: You can only add 10000 collections")
+                            return redirect('home:retrieve_collections', dbname=dbname)
+
+                        coll.update_one(
+                            {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
+                            {"$set": {"collection_names": updated_collection_names}}
+                        )
+
+                    mongodb = MongoDatabases()
+                    cluster = settings.MONGODB_CLIENT
+                    db = cluster["datacube_metadata"]
+                    coll = db['metadata_collection']
+                    databases = coll.find({"userID": user.get("userinfo", {}).get("userID")}, {"database_name": 1})
+                    databases = [x.get('database_name') for x in databases]
+
+                    collections = []
+                    for d in databases:
+                        try:
+                            colls = mongodb.get_all_database_collections(d)
+                            collections.extend(colls)
+                        except Exception:
+                            continue
+
+                    messages.success(request, f'Saved CSV Collection Successfully..!!')
+                    return redirect('home:retrieve_collections', dbname=dbname)
+                else:
+                    return redirect(f"{settings.MY_BASE_URL}/logout/")
+
+            else:
+                return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+        return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+
 
 
 @csrf_exempt
