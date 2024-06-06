@@ -156,7 +156,7 @@ def metadata_view(request):
                         "userID": user.get("userinfo", {}).get("userID"),
                     }
 
-                    total_coll_count = 10
+                    total_coll_count = 10 #######################10000
                     count = len(final_data["collection_names"])
                     for i in range(total_coll_count+1):
                         # count = len(final_data["collection_names"]) + i
@@ -485,27 +485,30 @@ def upload_csv_collections(request, dbname):
                         )
 
                         df = pd.read_csv(file)
-                        collection_names = df.columns.tolist()
+                        new_collection_names = df.columns.tolist()
 
                         existing_collection_names = db0.get("collection_names", [])
-                        new_collection_names = [name for name in collection_names if name not in existing_collection_names]
 
-                        # Create a list to hold the updated collection names
-                        updated_collection_names = existing_collection_names[:]
+                        # Update the existing collection names with new collection names
+                        for new_collection in new_collection_names:
+                            if new_collection not in existing_collection_names:
+                                # If an untitled collection exists, replace it with the new collection name
+                                for i, existing_collection in enumerate(existing_collection_names):
+                                    if existing_collection.startswith('untitled_coll_'):
+                                        # Update collection name in the database
+                                        old_collection_name = existing_collection
+                                        new_collection_name = new_collection
 
-                        # Replace untitled collections with new collection names without changing the order
-                        untitled_index = 0
-                        for i in range(len(updated_collection_names)):
-                            if updated_collection_names[i].startswith('untitled_coll_') and untitled_index < len(new_collection_names):
-                                updated_collection_names[i] = new_collection_names[untitled_index]
-                                untitled_index += 1
+                                        # Rename the collection in MongoDB
+                                        old_db = cluster["datacube_" + dbname]
+                                        old_db[old_collection_name].rename(new_collection_name)
 
-                        # Add remaining new collections if there's space
-                        remaining_new_collections = new_collection_names[untitled_index:]
-                        updated_collection_names.extend(remaining_new_collections)
+                                        # Update the name in the list
+                                        existing_collection_names[i] = new_collection_name
+                                        break
 
                         # Ensure no duplicates and limit to 10,000
-                        updated_collection_names = list(dict.fromkeys(updated_collection_names))[:10000]
+                        updated_collection_names = list(dict.fromkeys(existing_collection_names))[:10000]
 
                         if len(updated_collection_names) > 10000:
                             messages.error(request, "Limit Exceeded: You can only add 10000 collections")
@@ -516,31 +519,16 @@ def upload_csv_collections(request, dbname):
                             {"$set": {"collection_names": updated_collection_names}}
                         )
 
-                    mongodb = MongoDatabases()
-                    cluster = settings.MONGODB_CLIENT
-                    db = cluster["datacube_metadata"]
-                    coll = db['metadata_collection']
-                    databases = coll.find({"userID": user.get("userinfo", {}).get("userID")}, {"database_name": 1})
-                    databases = [x.get('database_name') for x in databases]
-
-                    collections = []
-                    for d in databases:
-                        try:
-                            colls = mongodb.get_all_database_collections(d)
-                            collections.extend(colls)
-                        except Exception:
-                            continue
-
-                    messages.success(request, f'Saved CSV Collection Successfully..!!')
+                    messages.success(request, 'Saved CSV Collection Successfully..!!')
                     return redirect('home:retrieve_collections', dbname=dbname)
                 else:
                     return redirect(f"{settings.MY_BASE_URL}/logout/")
-
             else:
                 return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except Exception as e:
         messages.error(request, f"An error occurred: {str(e)}")
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+
 
 
 
