@@ -156,7 +156,7 @@ def metadata_view(request):
                         "userID": user.get("userinfo", {}).get("userID"),
                     }
 
-                    total_coll_count = 10 #######################10000
+                    total_coll_count = 10000 #######################10000
                     count = len(final_data["collection_names"])
                     for i in range(total_coll_count+1):
                         # count = len(final_data["collection_names"]) + i
@@ -476,7 +476,6 @@ def upload_csv_collections(request, dbname):
                         db = cluster["datacube_metadata"]
                         coll = db['metadata_collection']
 
-                        # Check if the database entry exists, if not create one
                         db0 = coll.find_one_and_update(
                             {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
                             {"$setOnInsert": {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}},
@@ -489,25 +488,24 @@ def upload_csv_collections(request, dbname):
 
                         existing_collection_names = db0.get("collection_names", [])
 
-                        # Update the existing collection names with new collection names
                         for new_collection in new_collection_names:
                             if new_collection not in existing_collection_names:
-                                # If an untitled collection exists, replace it with the new collection name
                                 for i, existing_collection in enumerate(existing_collection_names):
                                     if existing_collection.startswith('untitled_coll_'):
-                                        # Update collection name in the database
                                         old_collection_name = existing_collection
                                         new_collection_name = new_collection
 
-                                        # Rename the collection in MongoDB
-                                        old_db = cluster["datacube_" + dbname]
-                                        old_db[old_collection_name].rename(new_collection_name)
+                                        # Rename the collection in db1
+                                        db1 = cluster["datacube_" + dbname]
+                                        db1_coll_list = db1.list_collection_names()
+                                        for db1_coll_name in db1_coll_list:
+                                            if db1_coll_name == old_collection_name:
+                                                db1[old_collection_name].rename(new_collection)
+                                                break
 
-                                        # Update the name in the list
                                         existing_collection_names[i] = new_collection_name
                                         break
 
-                        # Ensure no duplicates and limit to 10,000
                         updated_collection_names = list(dict.fromkeys(existing_collection_names))[:10000]
 
                         if len(updated_collection_names) > 10000:
