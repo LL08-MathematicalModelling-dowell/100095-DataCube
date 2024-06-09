@@ -11,6 +11,7 @@ from django.conf import settings
 from dbdetails.script import MongoDatabases
 from django.contrib import messages
 import pandas as pd
+from django.core.paginator import Paginator
 
 def login_view(request):
     try:
@@ -259,9 +260,8 @@ def retrieve_collections(request, dbname):
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
-                user_id = request.user.id  # Get the ID of the currently logged-in user
+                # search_query = request.GET.get('search', '')
 
-                # Query MongoDB for metadata records associated with the user ID and the specified 'dbname'
                 metadata_records = coll.find(
                     {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}).sort("collection_names")
 
@@ -271,10 +271,12 @@ def retrieve_collections(request, dbname):
                 remaining_collections = 10000
                 for record in metadata_records:
                     collection_names = record['collection_names']
-                    # Split the collection names by comma and count the number of items
                     total_collections = len(collection_names)
                     remaining_collections = remaining_collections - total_collections
-
+                    
+                    # if search_query:
+                    #     collection_names = [name for name in collection_names if search_query.lower() in name.lower()]
+                    
                     records.append({
                         'collection_names': ', '.join(record['collection_names']),
                         'number_of_collections': total_collections,
@@ -283,10 +285,21 @@ def retrieve_collections(request, dbname):
 
                 user = request.user
                 is_admin = False
-                context = {'page': 'Retrieve Collections', 'segment': 'metadata', 'is_admin': is_admin,
-                           'records': records,
-                           'dbname': dbname, 'collection_names': collection_names,
-                           'total_collections': total_collections,'remaining_collections':remaining_collections}
+                paginator = Paginator(collection_names, 1000)  # Show 25 contacts per page.
+                page_number = request.GET.get("page")
+                page_obj = paginator.get_page(page_number)
+                context = {
+                    "page_obj": page_obj,
+                    'page': 'Retrieve Collections',
+                    'segment': 'metadata',
+                    'is_admin': is_admin,
+                    'records': records,
+                    'dbname': dbname,
+                    'collection_names': collection_names,
+                    'total_collections': total_collections,
+                    'remaining_collections': remaining_collections,
+                    # 'search_query': search_query,  # Pass the search query to the template
+                }
                 html_template = loader.get_template('home/collections.html')
                 return HttpResponse(html_template.render(context, request))
             else:
