@@ -8,7 +8,7 @@ from django.shortcuts import render, redirect
 from django.template import loader
 import requests
 from django.conf import settings
-from dbdetails.script import MongoDatabases
+from dbdetails.script import MongoDatabases, dowell_time
 from django.contrib import messages
 import pandas as pd
 from django.core.paginator import Paginator
@@ -145,25 +145,43 @@ def metadata_view(request):
                         }
                         html_template = loader.get_template('home/metadata.html')
                         return HttpResponse(html_template.render(context, request))
+                    
+                    field_labels = request.POST.get('fieldLabels').split(',')
+                    if len(field_labels) > 10000:
+                        error_msg = "Not allowed more than 10,000 field labels"
+                        context = {
+                            'page': 'Add Metadata',
+                            'segment': 'index',
+                            'is_admin': False,
+                            'error_message': error_msg,
+                        }
+                        html_template = loader.get_template('home/metadata.html')
+                        return HttpResponse(html_template.render(context, request))
 
                     final_data = {
                         "number_of_collections": 10000,
                         "database_name": str(request.POST.get('databaseName').lower()),
                         "number_of_documents": 10000,
                         "number_of_fields": 10000,
-                        "field_labels": request.POST.get('fieldLabels').split(','),
+                        "field_labels": field_labels,
                         "collection_names": collection_names,
                         "region_id": str(request.POST.get('selected_region')),
                         "userID": user.get("userinfo", {}).get("userID"),
                     }
 
-                    total_coll_count = 10000 #######################10000
+                    total_coll_count = 10000
                     count = len(final_data["collection_names"])
-                    for i in range(total_coll_count+1):
-                        # count = len(final_data["collection_names"]) + i
-                        if i > count:
-                            untitled_coll = f'untitled_coll_{i}'
+                    for i in range(total_coll_count):
+                        if i >= count:
+                            untitled_coll = f'untitled_coll_{i + 1}'
                             final_data["collection_names"].append(untitled_coll)
+                    
+                    total_field_count = 10000
+                    count = len(final_data["field_labels"])
+                    for i in range(total_field_count):
+                        if i >= count:
+                            untitled_field = f'untitled_field_{i + 1}'
+                            final_data["field_labels"].append(untitled_field)
 
                     database = coll.find_one({"database_name": final_data["database_name"]})
 
@@ -283,16 +301,14 @@ def retrieve_collections(request, dbname):
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
-                user = request.user
-                is_admin = False
-                paginator = Paginator(collection_names, 1000)  # Show 25 contacts per page.
+                paginator = Paginator(collection_names, 10000)  # Show 25 contacts per page.
                 page_number = request.GET.get("page")
                 page_obj = paginator.get_page(page_number)
                 context = {
                     "page_obj": page_obj,
                     'page': 'Retrieve Collections',
                     'segment': 'metadata',
-                    'is_admin': is_admin,
+                    'is_admin': False,
                     'records': records,
                     'dbname': dbname,
                     'collection_names': collection_names,
@@ -317,46 +333,56 @@ def retrieve_fields(request, dbname):
             resp = requests.post(url, data={"session_id": request.session["session_id"]})
             user = json.loads(resp.text)
             if user.get("userinfo", {}).get("userID"):
-                
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
+                # search_query = request.GET.get('search', '')
 
                 metadata_records = coll.find(
-                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname})
+                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}
+                ).sort("field_names")
 
                 records = []
                 field_names = []
                 total_fields = 0
                 remaining_fields = 10000
-                for record in metadata_records:
-                    field_labels = record['field_labels']
-                    field_names.append(field_labels)
-                    total_fields = len(field_labels)
-                    remaining_fields = remaining_fields - total_fields
 
+                for record in metadata_records:
+                    field_labels = record.get('field_labels', [])
+                    total_fields += len(field_labels)
+                    remaining_fields -= len(field_labels)
+                    # if search_query:
+                    #     field_labels = [name for name in field_labels if search_query.lower() in name.lower()]
+                    field_names.extend(field_labels)
                     records.append({
-                        'number_of_fields': total_fields,
-                        'field_labels': ', '.join(record.get('field_labels', [])),
+                        'number_of_fields': len(field_labels),
+                        'field_labels': ', '.join(field_labels),
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
-                for name in field_names:
-                    field_names=name
-                
-                is_admin = False
-                context = {'page': 'Retrieve Fields', 'segment': 'metadata', 'is_admin': is_admin,
-                           'records': records,
-                           'dbname': dbname,
-                           'field_names': field_names,
-                           'total_fields': total_fields, 'remaining_fields': remaining_fields}
-                html_template = loader.get_template('home/fields.html')
-                return HttpResponse(html_template.render(context, request))
+                paginator = Paginator(field_names, 10000)  # Show 25 fields per page.
+                page_number = request.GET.get("page")
+                page_obj = paginator.get_page(page_number)
+
+                context = {
+                    "page_obj": page_obj,
+                    'page': 'Retrieve Fields',
+                    'segment': 'metadata',
+                    'is_admin': False,
+                    'records': records,
+                    'dbname': dbname,
+                    'field_names': field_names,
+                    'total_fields': total_fields,
+                    'remaining_fields': remaining_fields,
+                    # 'search_query': search_query,
+                }
+                return render(request, 'home/fields.html', context)
             else:
                 return redirect(f"{settings.MY_BASE_URL}/logout/")
         else:
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
-    except:
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
 
@@ -539,8 +565,120 @@ def upload_csv_collections(request, dbname):
     except Exception as e:
         messages.error(request, f"An error occurred: {str(e)}")
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    
 
+@csrf_exempt
+def upload_csv_fields(request, dbname):
+    try:
+        if not request.session.get("session_id"):
+            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
+        url = "https://100014.pythonanywhere.com/api/userinfo/"
+        resp = requests.post(url, data={"session_id": request.session["session_id"]})
+        user = json.loads(resp.text)
+        if not user.get("userinfo", {}).get("userID"):
+            return redirect(f"{settings.MY_BASE_URL}/logout/")
+
+        if request.method == 'POST':
+            file = request.FILES.get('fileToImport')
+            if not file:
+                messages.error(request, "No file uploaded.")
+                return redirect('home:retrieve_fields', dbname=dbname)
+
+            cluster = settings.MONGODB_CLIENT
+            db = cluster["datacube_metadata"]
+            coll = db['metadata_collection']
+
+            db0 = coll.find_one_and_update(
+                {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
+                {"$setOnInsert": {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}},
+                upsert=True,
+                return_document=True
+            )
+
+            df = pd.read_csv(file)
+            new_field_names = df.columns.tolist()
+            existing_field_names = db0.get("field_labels", [])
+
+            for new_field in new_field_names:
+                if new_field not in existing_field_names:
+                    renamed = False
+                    for i, existing_field in enumerate(existing_field_names):
+                        operation_field_name = f"{existing_field}_operation"
+                        operation_field = db0.get(operation_field_name, {})
+                        
+                        if operation_field and not operation_field.get('is_deleted', False):
+                            old_field_name = existing_field
+                            old_operation_field_name = operation_field_name
+                            new_field_name = new_field
+                            new_operation_field_name = f"{new_field}_operation"
+                            update_date_time = dowell_time()
+
+                            db1 = cluster[f"datacube_{dbname}"]
+                            for collection_name in db1.list_collection_names():
+                                db1[collection_name].update_many({}, {"$rename": {old_field_name: new_field_name, old_operation_field_name: new_operation_field_name}})
+                                
+                                if db1[collection_name].count_documents({new_operation_field_name: {"$exists": True}}):
+                                    db1[collection_name].update_many(
+                                        {new_operation_field_name: {"$exists": True}},
+                                        {"$push": {f"{new_operation_field_name}.update_date_time": {"$each": [update_date_time], "$position": 0}}}
+                                    )
+                                else:
+                                    db1[collection_name].update_many(
+                                        {new_operation_field_name: {"$exists": True}},
+                                        {"$set": {f"{new_operation_field_name}.update_date_time": [update_date_time]}}
+                                    )
+
+                            existing_field_names[i] = new_field_name
+                            renamed = True
+                            break
+                        elif existing_field.startswith('untitled_field_'):
+                            old_field_name = existing_field
+                            new_field_name = new_field
+                            new_operation_field_name = f"{new_field}_operation"
+                            update_date_time = dowell_time()["current_time"]
+
+                            db1 = cluster[f"datacube_{dbname}"]
+                            for collection_name in db1.list_collection_names():
+                                db1[collection_name].update_many({}, {"$rename": {old_field_name: new_field_name, operation_field_name: new_operation_field_name}})
+                                
+                                if db1[collection_name].count_documents({new_operation_field_name: {"$exists": True}}):
+                                    db1[collection_name].update_many(
+                                        {new_operation_field_name: {"$exists": True}},
+                                        {"$push": {f"{new_operation_field_name}.update_date_time": {"$each": [update_date_time], "$position": 0}}}
+                                    )
+                                else:
+                                    db1[collection_name].update_many(
+                                        {new_operation_field_name: {"$exists": True}},
+                                        {"$set": {f"{new_operation_field_name}.update_date_time": [update_date_time]}}
+                                    )
+
+                            existing_field_names[i] = new_field_name
+                            renamed = True
+                            break
+
+                    if not renamed:
+                        existing_field_names.append(new_field)
+
+            updated_field_names = list(dict.fromkeys(existing_field_names))[:10000]
+
+            if len(updated_field_names) > 10000:
+                messages.error(request, "Limit Exceeded: You can only add 10,000 fields")
+                return redirect('home:retrieve_fields', dbname=dbname)
+
+            coll.update_one(
+                {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
+                {"$set": {"field_labels": updated_field_names}}
+            )
+
+            messages.success(request, 'Saved CSV fields successfully..!!')
+            return redirect('home:retrieve_fields', dbname=dbname)
+        else:
+            return redirect(f"{settings.MY_BASE_URL}/logout/")
+
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+        return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
 
 @csrf_exempt
