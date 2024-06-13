@@ -20,7 +20,7 @@ urlpatterns = [
     path('retrieve_fields/<str:dbname>', views.retrieve_fields, name='retrieve_fields'),
     path('add_fields/<str:dbname>', views.add_fields, name='add_fields'),
     path('upload_csv_collections/<str:dbname>', views.upload_csv_collections, name='upload_csv_collections'), 
-    # path('upload_csv_fields/<str:dbname>', views.upload_csv_fields, name='upload_csv_fields'),
+    path('upload_csv_fields/<str:dbname>', views.upload_csv_fields, name='upload_csv_fields'),
     path('settings/', views.settings_view, name='settings'),
 
 ]

@@ -278,7 +278,7 @@ def retrieve_collections(request, dbname):
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
-                # search_query = request.GET.get('search', '')
+                search_query = request.GET.get('search', '')
 
                 metadata_records = coll.find(
                     {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}).sort("collection_names")
@@ -292,8 +292,8 @@ def retrieve_collections(request, dbname):
                     total_collections = len(collection_names)
                     remaining_collections = remaining_collections - total_collections
                     
-                    # if search_query:
-                    #     collection_names = [name for name in collection_names if search_query.lower() in name.lower()]
+                    if search_query:
+                        collection_names = [name for name in collection_names if search_query.lower() in name.lower()]
                     
                     records.append({
                         'collection_names': ', '.join(record['collection_names']),
@@ -314,7 +314,7 @@ def retrieve_collections(request, dbname):
                     'collection_names': collection_names,
                     'total_collections': total_collections,
                     'remaining_collections': remaining_collections,
-                    # 'search_query': search_query,  # Pass the search query to the template
+                    'search_query': search_query,  # Pass the search query to the template
                 }
                 html_template = loader.get_template('home/collections.html')
                 return HttpResponse(html_template.render(context, request))
@@ -336,7 +336,7 @@ def retrieve_fields(request, dbname):
                 cluster = settings.MONGODB_CLIENT
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
-                # search_query = request.GET.get('search', '')
+                search_query = request.GET.get('search', '')
 
                 metadata_records = coll.find(
                     {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}
@@ -351,8 +351,8 @@ def retrieve_fields(request, dbname):
                     field_labels = record.get('field_labels', [])
                     total_fields += len(field_labels)
                     remaining_fields -= len(field_labels)
-                    # if search_query:
-                    #     field_labels = [name for name in field_labels if search_query.lower() in name.lower()]
+                    if search_query:
+                        field_labels = [name for name in field_labels if search_query.lower() in name.lower()]
                     field_names.extend(field_labels)
                     records.append({
                         'number_of_fields': len(field_labels),
@@ -374,7 +374,7 @@ def retrieve_fields(request, dbname):
                     'field_names': field_names,
                     'total_fields': total_fields,
                     'remaining_fields': remaining_fields,
-                    # 'search_query': search_query,
+                    'search_query': search_query,
                 }
                 return render(request, 'home/fields.html', context)
             else:

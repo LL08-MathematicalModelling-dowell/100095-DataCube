@@ -29,13 +29,12 @@
         <h2>{{ dbname }} Field Labels ({{ total_fields }}) Records & remaining ({{remaining_fields}})</h2>
         <!-- Button trigger modal -->
         
-        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalLong">
+        {% comment %} <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalLong">
             Add Field Label
-        </button>
-        {% comment %} <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalLong1">
-            Add CSV Fields
         </button> {% endcomment %}
-
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalLong1">
+            Add CSV Fields
+        </button>
 
         <!-- Modal 1-->
         <div class="modal fade" id="exampleModalLong" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true" data-dbname="{{ dbname }}" >
@@ -68,7 +67,7 @@
         </div>
 
         <!-- Modal 2-->
-        {% comment %} <div class="modal fade" id="exampleModalLong1" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true" data-dbname="{{ dbname }}">
+        <div class="modal fade" id="exampleModalLong1" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true" data-dbname="{{ dbname }}">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -92,7 +91,7 @@
                     </form>
                 </div>
             </div>
-        </div> {% endcomment %}
+        </div>
 
 
     </div>
