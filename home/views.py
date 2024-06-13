@@ -95,7 +95,14 @@ def data_view(request):
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
                 databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
-                databases = [x.get('database_name') for x in databases]
+                unique_databases = set()  # Initialize a set to store unique database names
+
+                for db_record in databases:
+                    database_name = db_record.get('database_name', '').lower()  # Convert database name to lowercase
+                    unique_databases.add(database_name)  # Add the database name to the set
+
+                databases = list(unique_databases)  # Convert set back to a list if necessary
+
 
                 collections = []
                 for d in databases:
@@ -215,24 +222,28 @@ def retrieve_metadata(request):
                 metadata_records = coll.find({"added_by": user.get("userinfo", {}).get("username"), })
 
                 records = []
+                unique_databases = set()  # Initialize a set to store unique database names
+
                 for record in metadata_records:
-                    # Add this line for debugging
-
-                    records.append({
-
-                        'collection_names': ', '.join(record.get('collection_names', [])),
-                        'database_name': record.get('database_name', '').lower(),
-                        'number_of_collections': record.get('number_of_collections', 0),  # Add this line
-                        'number_of_documents': record.get('number_of_documents', 0),  # Add this line
-                        'number_of_fields': record.get('number_of_fields', 0),
-                        'added_by': user.get("userinfo", {}).get("username"),
-                    })
+                    database_name = record.get('database_name', '').lower()  # Convert database name to lowercase
+                    if database_name not in unique_databases:  # Check if the database name is unique
+                        # Add the record to the list
+                        records.append({
+                            'collection_names': ', '.join(record.get('collection_names', [])),
+                            'database_name': database_name,
+                            'number_of_collections': record.get('number_of_collections', 0),
+                            'number_of_documents': record.get('number_of_documents', 0),
+                            'number_of_fields': record.get('number_of_fields', 0),
+                            'added_by': user.get("userinfo", {}).get("username"),
+                        })
+                        unique_databases.add(database_name)  # Add the database name to the set
 
                 user = request.user
                 is_admin = user.is_superuser
                 context = {'page': 'Retrieve Metadata', 'segment': 'metadata', 'is_admin': is_admin, 'records': records}
                 html_template = loader.get_template('home/retrieve_metadata.html')
                 return HttpResponse(html_template.render(context, request))
+
             else:
                 return redirect(f"{settings.MY_BASE_URL}/logout/")
         else:
@@ -256,7 +267,7 @@ def retrieve_collections(request, dbname):
 
                 # Query MongoDB for metadata records associated with the user ID and the specified 'dbname'
                 metadata_records = coll.find(
-                    {"added_by": user.get("userinfo", {}).get("username"), "database_name": dbname})
+                    {"added_by": user.get("userinfo", {}).get("username"), "database_name": dbname.lower()})
 
                 records = []
                 collection_names = []
@@ -276,7 +287,7 @@ def retrieve_collections(request, dbname):
                 is_admin = False
                 context = {'page': 'Retrieve Collections', 'segment': 'metadata', 'is_admin': is_admin,
                            'records': records,
-                           'dbname': dbname, 'collection_names': collection_names,
+                           'dbname': dbname.lower(), 'collection_names': collection_names,
                            'total_collections': total_collections}
                 html_template = loader.get_template('home/collections.html')
                 return HttpResponse(html_template.render(context, request))
@@ -332,11 +343,11 @@ def add_collections(request, dbname):
                             "added_by": final_data["added_by"]
                         })
 
-                    return redirect('home:retrieve_collections', dbname=dbname)
+                    return redirect('home:retrieve_collections', dbname=dbname.lower())
 
                 user = request.user
                 is_admin = user.is_superuser
-                context = {'page': 'Add Collections', 'segment': 'metadata', 'is_admin': is_admin, 'dbname': dbname}
+                context = {'page': 'Add Collections', 'segment': 'metadata', 'is_admin': is_admin, 'dbname': dbname.lower()}
 
                 return render(request, 'home/collections.html', context)
             else:
@@ -416,7 +427,14 @@ def settings_view(request):
                 db = cluster["datacube_metadata"]
                 coll = db['metadata_collection']
                 databases = coll.find({"added_by": user.get("userinfo", {}).get("username")}, {"database_name": 1})
-                databases = [x.get('database_name') for x in databases]
+                unique_databases = set()  # Initialize a set to store unique database names
+
+                for db_record in databases:
+                    database_name = db_record.get('database_name', '').lower()  # Convert database name to lowercase
+                    unique_databases.add(database_name)  # Add the database name to the set
+
+                databases = list(unique_databases)  # Convert set back to a list if necessary
+
 
                 collections = []
                 for d in databases:
