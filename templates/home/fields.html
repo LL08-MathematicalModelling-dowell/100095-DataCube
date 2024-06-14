@@ -10,7 +10,7 @@
 {% if messages %}
     <div>
         {% for message in messages %}
-            <div class="alert alert-warning" role="alert">
+            <div class="alert alert-success" role="alert" style="color: white;">
                 {{ message }}
             </div>
         {% endfor %}
@@ -26,12 +26,17 @@
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center">
-        <h1>{{ dbname }} Field Labels ({{ total_fields }}) Records & remaining ({{remaining_fields}})</h1>
+        <h2>{{ dbname }} Field Labels ({{ total_fields }}) Records & remaining ({{remaining_fields}})</h2>
         <!-- Button trigger modal -->
-        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalLong">
+        
+        {% comment %} <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalLong">
             Add Field Label
+        </button> {% endcomment %}
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalLong1">
+            Add CSV Fields
         </button>
-        <!-- Modal -->
+
+        <!-- Modal 1-->
         <div class="modal fade" id="exampleModalLong" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true" data-dbname="{{ dbname }}" >
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -60,10 +65,50 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal 2-->
+        <div class="modal fade" id="exampleModalLong1" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true" data-dbname="{{ dbname }}">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLongTitle">Upload CSV of Fields</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form id="col-form" action="{% url 'home:upload_csv_fields' dbname=dbname %}" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="fileToImport"><h6>Attach CSV File to Add Fields (comma-separated):</h6></label>
+                                <input type="file" id="fileToImport" name="fileToImport" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button class="btn btn-primary">Submit</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+
     </div>
 </div>
 
 {% if records %}
+
+    <!-- Search Form -->
+    {% comment %} <div class="row justify-content-start ms-2">
+        <div class="col-auto">
+            <form class="form-inline my-2 my-lg-0" method="get">
+                <input class="form-control mr-sm-2" type="search" placeholder="Search fields" aria-label="Search" name="search" value="{{ search_query }}">
+                <button class="btn btn-outline-success btn-sm my-2 my-sm-0" type="submit">Search</button>
+            </form>
+        </div>
+    </div> {% endcomment %}
+
     <table class="table table-striped">
         <thead>
             <tr>
@@ -72,33 +117,50 @@
             </tr>
         </thead>
         <tbody>
-            {% for record in records %}
-                <tr>
-                    {% for field_name in field_names %}
+            <!-- pagination page_obj-->
+                    {% for field_name in page_obj %}
                         <tr>
                             <td>{{ field_name }}</td>
-                            <td>{{ record.added_by }}</td>
+                            <td>{{ records.0.added_by }}</td>
                         </tr>
                     {% endfor %}
-                </tr>
-            {% endfor %}
         </tbody>
     </table>
 {% else %}
     <p>No records to display.</p>
 {% endif %}
-</div>
 
-<script>
-    function printError(elementId, hintMessage) {
-        document.getElementById(elementId).innerHTML = hintMessage;
-    }
+    <!-- pagination -->
+    {% comment %} <div class="pagination">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1">First</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Prev</a></li>
+                {% endif %}
+    
+                {% for i in page_obj.paginator.page_range %}
+                    {% if page_obj.number == i %}
+                        <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                    {% elif i > page_obj.number|add:'-5' and i < page_obj.number|add:'5' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                    {% endif %}
+                {% endfor %}
+    
+                {% if page_obj.number < page_obj.paginator.num_pages|add:'-5' %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages|add:'-2' }}">{{ page_obj.paginator.num_pages|add:'-2' }}</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages|add:'-1' }}">{{ page_obj.paginator.num_pages|add:'-1' }}</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a></li>
+                {% endif %}
+    
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div> {% endcomment %}
 
-    $('#fieldNames').keypress(function () {
-            printError("metaError", "");
-    });
 
-    var dbname = $('#myModal').data('dbname');
-    console.log('Database name:', dbname);
-</script>
 {% endblock content %}
