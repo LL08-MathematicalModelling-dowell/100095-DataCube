@@ -301,7 +301,7 @@ def retrieve_collections(request, dbname):
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
-                paginator = Paginator(collection_names, 10000)  # Show 25 contacts per page.
+                paginator = Paginator(collection_names, 20)  # Show 25 contacts per page.
                 page_number = request.GET.get("page")
                 page_obj = paginator.get_page(page_number)
                 context = {
@@ -360,7 +360,7 @@ def retrieve_fields(request, dbname):
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
-                paginator = Paginator(field_names, 10000)  # Show 25 fields per page.
+                paginator = Paginator(field_names, 20)  # Show 25 fields per page.
                 page_number = request.GET.get("page")
                 page_obj = paginator.get_page(page_number)
 
