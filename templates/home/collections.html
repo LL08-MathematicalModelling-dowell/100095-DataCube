@@ -36,6 +36,8 @@
             Add CSV Collections
         </button>
 
+        <a href="{% url 'home:export_collections_to_csv' dbname=dbname %}" class="btn btn-secondary">Export CSV</a>
+
         <!-- Modal 1-->
         {% comment %} <div class="modal fade" id="exampleModalLong" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true" data-dbname="{{ dbname }}" >
             <div class="modal-dialog" role="document">

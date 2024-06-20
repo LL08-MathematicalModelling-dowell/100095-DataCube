@@ -324,7 +324,44 @@ def retrieve_collections(request, dbname):
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
-    
+
+
+def export_collections_to_csv(request, dbname):
+    try:
+        if request.session.get("session_id"):
+            url = "https://100014.pythonanywhere.com/api/userinfo/"
+            resp = requests.post(url, data={"session_id": request.session["session_id"]})
+            user = json.loads(resp.text)
+            if user.get("userinfo", {}).get("userID"):
+                
+                cluster = settings.MONGODB_CLIENT
+                db = cluster["datacube_metadata"]
+                coll = db['metadata_collection']
+
+                metadata_records = coll.find(
+                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}).sort("collection_names")
+
+                collection_names = []
+                for record in metadata_records:
+                    collection_names.extend(record['collection_names'])
+
+                # Create the HttpResponse object with the appropriate CSV header.
+                response = HttpResponse(content_type='text/csv')
+                response['Content-Disposition'] = 'attachment; filename="collections.csv"'
+
+                # Write collection names as a single row, comma-separated
+                writer = csv.writer(response)
+                writer.writerow(collection_names)
+
+                return response
+            else:
+                return redirect(f"{settings.MY_BASE_URL}/logout/")
+        else:
+            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    except Exception as e:
+        return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+
+
     
 def retrieve_fields(request, dbname):
     try:
