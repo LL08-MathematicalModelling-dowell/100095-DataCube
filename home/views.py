@@ -13,6 +13,8 @@ from django.contrib import messages
 import pandas as pd
 from django.core.paginator import Paginator
 
+from project.settings import MONGODB_CLIENT
+
 def login_view(request):
     try:
         url_id = request.GET.get('session_id', None)
@@ -158,6 +160,10 @@ def metadata_view(request):
                         html_template = loader.get_template('home/metadata.html')
                         return HttpResponse(html_template.render(context, request))
 
+                    # Convert each collection name and field label to an array of arrays with one element each
+                    collection_names = [[name] for name in collection_names]
+                    field_labels = [[label] for label in field_labels]
+
                     final_data = {
                         "number_of_collections": 10000,
                         "database_name": str(request.POST.get('databaseName').lower()),
@@ -174,14 +180,14 @@ def metadata_view(request):
                     for i in range(total_coll_count):
                         if i >= count:
                             untitled_coll = f'untitled_coll_{i + 1}'
-                            final_data["collection_names"].append(untitled_coll)
+                            final_data["collection_names"].append([untitled_coll])
                     
                     total_field_count = 10000
                     count = len(final_data["field_labels"])
                     for i in range(total_field_count):
                         if i >= count:
                             untitled_field = f'untitled_field_{i + 1}'
-                            final_data["field_labels"].append(untitled_field)
+                            final_data["field_labels"].append([untitled_field])
 
                     database = coll.find_one({"database_name": final_data["database_name"]})
 
@@ -236,25 +242,20 @@ def retrieve_metadata(request):
                 coll = db['metadata_collection']
 
                 # Query MongoDB for metadata records associated with the user ID
-                metadata_records = coll.find({"userID": user.get("userinfo", {}).get("userID"), })
+                metadata_records = coll.find({"userID": user.get("userinfo", {}).get("userID")})
 
                 records = []
                 for record in metadata_records:
-                    # Add this line for debugging
-                    # print(record,"', '.join(record.get('collection_names', []))",', '.join(record.get('field_labels', [])))
-
                     records.append({
-
-                        'collection_names': ', '.join(record.get('collection_names', [])),
+                        'collection_names': [''.join(name) for name in record.get('collection_names', [])],
                         'database_name': record.get('database_name', '').lower(),
-                        'number_of_collections': record.get('number_of_collections', 0),  # Add this line
-                        'number_of_documents': record.get('number_of_documents', 0),  # Add this line
+                        'number_of_collections': record.get('number_of_collections', 0),
+                        'number_of_documents': record.get('number_of_documents', 0),
                         'number_of_fields': record.get('number_of_fields', 0),
-                        'field_labels': ', '.join(record.get('field_labels', [])),
+                        'field_labels': [''.join(label) for label in record.get('field_labels', [])],
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
-                
                 is_admin = False
                 context = {'page': 'Retrieve Metadata', 'segment': 'metadata', 'is_admin': is_admin, 'records': records}
                 html_template = loader.get_template('home/retrieve_metadata.html')
@@ -288,7 +289,7 @@ def retrieve_collections(request, dbname):
                 total_collections = 0
                 remaining_collections = 10000
                 for record in metadata_records:
-                    collection_names = record['collection_names']
+                    collection_names = [''.join(name) for name in record['collection_names']]
                     total_collections = len(collection_names)
                     remaining_collections = remaining_collections - total_collections
                     
@@ -296,12 +297,12 @@ def retrieve_collections(request, dbname):
                         collection_names = [name for name in collection_names if search_query.lower() in name.lower()]
                     
                     records.append({
-                        'collection_names': ', '.join(record['collection_names']),
+                        'collection_names': ', '.join(collection_names),
                         'number_of_collections': total_collections,
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
-                paginator = Paginator(collection_names, 20)  # Show 25 contacts per page.
+                paginator = Paginator(collection_names, 20)  # Show 20 collections per page.
                 page_number = request.GET.get("page")
                 page_obj = paginator.get_page(page_number)
                 context = {
@@ -377,7 +378,7 @@ def retrieve_fields(request, dbname):
 
                 metadata_records = coll.find(
                     {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}
-                ).sort("field_names")
+                ).sort("field_labels")
 
                 records = []
                 field_names = []
@@ -385,7 +386,7 @@ def retrieve_fields(request, dbname):
                 remaining_fields = 10000
 
                 for record in metadata_records:
-                    field_labels = record.get('field_labels', [])
+                    field_labels = [''.join(label) for label in record.get('field_labels', [])]
                     total_fields += len(field_labels)
                     remaining_fields -= len(field_labels)
                     if search_query:
@@ -397,7 +398,7 @@ def retrieve_fields(request, dbname):
                         'added_by': user.get("userinfo", {}).get("username"),
                     })
 
-                paginator = Paginator(field_names, 20)  # Show 25 fields per page.
+                paginator = Paginator(field_names, 20)  # Show 20 fields per page.
                 page_number = request.GET.get("page")
                 page_obj = paginator.get_page(page_number)
 
@@ -548,13 +549,13 @@ def upload_csv_collections(request, dbname):
                 if request.method == 'POST':
                     file = request.FILES.get('fileToImport')
                     if file:
-                        cluster = settings.MONGODB_CLIENT
-                        db = cluster["datacube_metadata"]
+                        cluster = MONGODB_CLIENT
+                        db = cluster.get_database("datacube_metadata")
                         coll = db['metadata_collection']
 
-                        db0 = coll.find_one_and_update(
-                            {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
-                            {"$setOnInsert": {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}},
+                        db_record = coll.find_one_and_update(
+                            {"userID": user["userinfo"]["userID"], "database_name": dbname},
+                            {"$setOnInsert": {"userID": user["userinfo"]["userID"], "database_name": dbname}},
                             upsert=True,
                             return_document=True
                         )
@@ -562,43 +563,34 @@ def upload_csv_collections(request, dbname):
                         df = pd.read_csv(file)
                         new_collection_names = df.columns.tolist()
 
-                        existing_collection_names = db0.get("collection_names", [])
+                        existing_collection_names = db_record.get("collection_names", [])
 
-                        for new_collection in new_collection_names:
-                            if new_collection not in existing_collection_names:
-                                for i, existing_collection in enumerate(existing_collection_names):
-                                    if existing_collection.startswith('untitled_coll_'):
-                                        old_collection_name = existing_collection
-                                        new_collection_name = new_collection
+                        # Replace collection names based on their index
+                        for idx, name in enumerate(new_collection_names):
+                            if idx < len(existing_collection_names):
+                                existing_collection_names[idx] = name
+                            else:
+                                existing_collection_names.append(name)
 
-                                        # Rename the collection in db1
-                                        db1 = cluster["datacube_" + dbname]
-                                        db1_coll_list = db1.list_collection_names()
-                                        for db1_coll_name in db1_coll_list:
-                                            if db1_coll_name == old_collection_name:
-                                                db1[old_collection_name].rename(new_collection)
-                                                break
-
-                                        existing_collection_names[i] = new_collection_name
-                                        break
-
-                        updated_collection_names = list(dict.fromkeys(existing_collection_names))[:10000]
-
-                        if len(updated_collection_names) > 10000:
-                            messages.error(request, "Limit Exceeded: You can only add 10000 collections")
-                            return redirect('home:retrieve_collections', dbname=dbname)
+                        # Limit collection names to 10000 items
+                        updated_collection_names = existing_collection_names[:10000]
 
                         coll.update_one(
-                            {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
+                            {"userID": user["userinfo"]["userID"], "database_name": dbname},
                             {"$set": {"collection_names": updated_collection_names}}
                         )
 
-                    messages.success(request, 'Saved CSV Collection Successfully..!!')
-                    return redirect('home:retrieve_collections', dbname=dbname)
+                        messages.success(request, 'Saved CSV Collection Successfully..!!')
+                        return redirect('home:retrieve_collections', dbname=dbname)
+                    else:
+                        messages.error(request, 'No file selected')
+                        return redirect('home:retrieve_collections', dbname=dbname)
                 else:
                     return redirect(f"{settings.MY_BASE_URL}/logout/")
             else:
                 return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+        else:
+            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except Exception as e:
         messages.error(request, f"An error occurred: {str(e)}")
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
