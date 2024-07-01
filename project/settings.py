@@ -126,4 +126,4 @@ STATICFILES_DIRS = [
 STATIC_ROOT = os.path.join(BASE_DIR, 'assets')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-MY_BASE_URL = 'https://datacube.uxlivinglab.online'
+MY_BASE_URL = 'https://uxlive.online/'
