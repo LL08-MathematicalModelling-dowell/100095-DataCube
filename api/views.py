@@ -22,6 +22,14 @@ from datetime import datetime
 from rest_framework.exceptions import ValidationError
 
 @method_decorator(csrf_exempt, name='dispatch')
+class serviceInfo(APIView):
+    def get(self, request):
+        return Response({
+            "success": True,
+            "message": "Welcome to our API service."
+        }, status=status.HTTP_200_OK)
+
+@method_decorator(csrf_exempt, name='dispatch')
 class DataCrudView(APIView):
     def get(self, request, *args, **kwargs):
         try:
