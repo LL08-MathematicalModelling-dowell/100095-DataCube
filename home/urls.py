@@ -22,6 +22,7 @@ urlpatterns = [
     path('upload_csv_collections/<str:dbname>', views.upload_csv_collections, name='upload_csv_collections'), 
     path('upload_csv_fields/<str:dbname>', views.upload_csv_fields, name='upload_csv_fields'),
     path('export_collections_to_csv/<str:dbname>/', views.export_collections_to_csv, name='export_collections_to_csv'),
+    path('export_fields_to_csv/<str:dbname>/', views.export_fields_to_csv, name='export_fields_to_csv'),
     path('settings/', views.settings_view, name='settings'),
 
 ]

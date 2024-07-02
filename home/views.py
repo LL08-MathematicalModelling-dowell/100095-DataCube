@@ -361,6 +361,42 @@ def export_collections_to_csv(request, dbname):
             return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except Exception as e:
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    
+
+def export_fields_to_csv(request, dbname):
+    try:
+        if request.session.get("session_id"):
+            url = "https://100014.pythonanywhere.com/api/userinfo/"
+            resp = requests.post(url, data={"session_id": request.session["session_id"]})
+            user = json.loads(resp.text)
+            if user.get("userinfo", {}).get("userID"):
+                
+                cluster = settings.MONGODB_CLIENT
+                db = cluster["datacube_metadata"]
+                coll = db['metadata_collection']
+
+                metadata_records = coll.find(
+                    {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}).sort("field_labels")
+
+                field_labels = []
+                for record in metadata_records:
+                    field_labels.extend(record['field_labels'])
+
+                # Create the HttpResponse object with the appropriate CSV header.
+                response = HttpResponse(content_type='text/csv')
+                response['Content-Disposition'] = 'attachment; filename="field_labels.csv"'
+
+                # Write collection names as a single row, comma-separated
+                writer = csv.writer(response)
+                writer.writerow(field_labels)
+
+                return response
+            else:
+                return redirect(f"{settings.MY_BASE_URL}/logout/")
+        else:
+            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+    except Exception as e:
+        return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
 
 
     
@@ -599,115 +635,59 @@ def upload_csv_collections(request, dbname):
 @csrf_exempt
 def upload_csv_fields(request, dbname):
     try:
-        if not request.session.get("session_id"):
-            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+        if request.session.get("session_id"):
+            url = "https://100014.pythonanywhere.com/api/userinfo/"
+            resp = requests.post(url, data={"session_id": request.session["session_id"]})
+            user = json.loads(resp.text)
+            if user.get("userinfo", {}).get("userID"):
+                if request.method == 'POST':
+                    file = request.FILES.get('fileToImport')
+                    if file:
+                        cluster = settings.MONGODB_CLIENT
+                        db = cluster["datacube_metadata"]
+                        coll = db['metadata_collection']
 
-        url = "https://100014.pythonanywhere.com/api/userinfo/"
-        resp = requests.post(url, data={"session_id": request.session["session_id"]})
-        user = json.loads(resp.text)
-        if not user.get("userinfo", {}).get("userID"):
-            return redirect(f"{settings.MY_BASE_URL}/logout/")
+                        db_record = coll.find_one_and_update(
+                            {"userID": user["userinfo"]["userID"], "database_name": dbname},
+                            {"$setOnInsert": {"userID": user["userinfo"]["userID"], "database_name": dbname}},
+                            upsert=True,
+                            return_document=True
+                        )
 
-        if request.method == 'POST':
-            file = request.FILES.get('fileToImport')
-            if not file:
-                messages.error(request, "No file uploaded.")
-                return redirect('home:retrieve_fields', dbname=dbname)
+                        df = pd.read_csv(file)
+                        new_field_names = df.columns.tolist()
+                        existing_field_names = db_record.get("field_labels", [])
 
-            cluster = settings.MONGODB_CLIENT
-            db = cluster["datacube_metadata"]
-            coll = db['metadata_collection']
+                        # Replace field labels based on their index
+                        for idx, name in enumerate(new_field_names):
+                            if idx < len(existing_field_names):
+                                existing_field_names[idx] = name
+                            else:
+                                existing_field_names.append(name)
 
-            db0 = coll.find_one_and_update(
-                {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
-                {"$setOnInsert": {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname}},
-                upsert=True,
-                return_document=True
-            )
+                        # Limit field labels to 10000 items
+                        updated_field_labels = existing_field_names[:10000]
 
-            df = pd.read_csv(file)
-            new_field_names = df.columns.tolist()
-            existing_field_names = db0.get("field_labels", [])
+                        coll.update_one(
+                            {"userID": user["userinfo"]["userID"], "database_name": dbname},
+                            {"$set": {"field_labels": updated_field_labels}}
+                        )
 
-            for new_field in new_field_names:
-                if new_field not in existing_field_names:
-                    renamed = False
-                    for i, existing_field in enumerate(existing_field_names):
-                        operation_field_name = f"{existing_field}_operation"
-                        operation_field = db0.get(operation_field_name, {})
-                        
-                        if operation_field and not operation_field.get('is_deleted', False):
-                            old_field_name = existing_field
-                            old_operation_field_name = operation_field_name
-                            new_field_name = new_field
-                            new_operation_field_name = f"{new_field}_operation"
-                            update_date_time = dowell_time()
-
-                            db1 = cluster[f"datacube_{dbname}"]
-                            for collection_name in db1.list_collection_names():
-                                db1[collection_name].update_many({}, {"$rename": {old_field_name: new_field_name, old_operation_field_name: new_operation_field_name}})
-                                
-                                if db1[collection_name].count_documents({new_operation_field_name: {"$exists": True}}):
-                                    db1[collection_name].update_many(
-                                        {new_operation_field_name: {"$exists": True}},
-                                        {"$push": {f"{new_operation_field_name}.update_date_time": {"$each": [update_date_time], "$position": 0}}}
-                                    )
-                                else:
-                                    db1[collection_name].update_many(
-                                        {new_operation_field_name: {"$exists": True}},
-                                        {"$set": {f"{new_operation_field_name}.update_date_time": [update_date_time]}}
-                                    )
-
-                            existing_field_names[i] = new_field_name
-                            renamed = True
-                            break
-                        elif existing_field.startswith('untitled_field_'):
-                            old_field_name = existing_field
-                            new_field_name = new_field
-                            new_operation_field_name = f"{new_field}_operation"
-                            update_date_time = dowell_time()["current_time"]
-
-                            db1 = cluster[f"datacube_{dbname}"]
-                            for collection_name in db1.list_collection_names():
-                                db1[collection_name].update_many({}, {"$rename": {old_field_name: new_field_name, operation_field_name: new_operation_field_name}})
-                                
-                                if db1[collection_name].count_documents({new_operation_field_name: {"$exists": True}}):
-                                    db1[collection_name].update_many(
-                                        {new_operation_field_name: {"$exists": True}},
-                                        {"$push": {f"{new_operation_field_name}.update_date_time": {"$each": [update_date_time], "$position": 0}}}
-                                    )
-                                else:
-                                    db1[collection_name].update_many(
-                                        {new_operation_field_name: {"$exists": True}},
-                                        {"$set": {f"{new_operation_field_name}.update_date_time": [update_date_time]}}
-                                    )
-
-                            existing_field_names[i] = new_field_name
-                            renamed = True
-                            break
-
-                    if not renamed:
-                        existing_field_names.append(new_field)
-
-            updated_field_names = list(dict.fromkeys(existing_field_names))[:10000]
-
-            if len(updated_field_names) > 10000:
-                messages.error(request, "Limit Exceeded: You can only add 10,000 fields")
-                return redirect('home:retrieve_fields', dbname=dbname)
-
-            coll.update_one(
-                {"userID": user.get("userinfo", {}).get("userID"), "database_name": dbname},
-                {"$set": {"field_labels": updated_field_names}}
-            )
-
-            messages.success(request, 'Saved CSV fields successfully..!!')
-            return redirect('home:retrieve_fields', dbname=dbname)
+                        messages.success(request, 'Saved CSV fields successfully..!!')
+                        return redirect('home:retrieve_fields', dbname=dbname)
+                    else:
+                        messages.error(request, 'No file selected')
+                        return redirect('home:retrieve_fields', dbname=dbname)
+                else:
+                    return redirect(f"{settings.MY_BASE_URL}/logout/")
+            else:
+                return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
         else:
-            return redirect(f"{settings.MY_BASE_URL}/logout/")
-
+            return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
     except Exception as e:
         messages.error(request, f"An error occurred: {str(e)}")
         return redirect(f"https://100014.pythonanywhere.com/?redirect_url={settings.MY_BASE_URL}/login/")
+
 
 
 @csrf_exempt
