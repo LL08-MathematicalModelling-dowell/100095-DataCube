@@ -1,3 +1,4 @@
+import logging
 import traceback
 import pymongo
 from bson import ObjectId
@@ -113,7 +114,16 @@ class DataCrudView(APIView):
 
             data = serializer.validated_data
             database = data.get('db_name')
-            coll = data.get('coll_name')
+            
+            coll_names = data.get('coll_name')
+            if isinstance(coll_names, str):
+                coll = coll_names.strip("[]").replace("'", "").replace("\"", "").split(",")
+                coll = [name.strip() for name in coll]
+            elif isinstance(coll_names, list):
+                coll = [name.strip() for name in coll_names]
+            else:
+                coll = []
+
             operation = data.get('operation')
             data_type = data.get('data_type')
             data_to_insert = data.get('data', {})
@@ -122,18 +132,28 @@ class DataCrudView(APIView):
 
             cluster = settings.MONGODB_CLIENT
             mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
-
+            
             if not mongo_db:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube",
                     "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
-            mongodb_coll = settings.METADATA_COLLECTION.find_one({"database_name": database, "collection_names": {"$in": [coll]}})
+            # Flatten and clean collection names from metadata for accurate matching
+            raw_collections = mongo_db.get('collection_names', [])
+            cleaned_collections = set()
 
-            if not mongodb_coll:
+            for sublist in raw_collections:
+                if isinstance(sublist, str):
+                    sublist = eval(sublist)  # Convert string representation of list to actual list
+                if isinstance(sublist, list):
+                    for name in sublist:
+                        if isinstance(name, str):
+                            cleaned_collections.add(name.strip("[]'\""))
+
+            if not set(coll).issubset(cleaned_collections):
                 return Response(
-                    {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
+                    {"success": False, "message": f"One or more collections in '{coll}' do not exist in Datacube database",
                     "data": []},
                     status=status.HTTP_404_NOT_FOUND)
 
@@ -155,33 +175,52 @@ class DataCrudView(APIView):
                         status=status.HTTP_404_NOT_FOUND)
 
             if operation == "insert":
-
                 new_db = cluster["datacube_" + database]
-                new_collection = new_db[coll]
+
+                # Ensure collection name is a string
+                if len(coll) != 1 or not isinstance(coll[0], str):
+                    return Response(
+                        {"success": False, "message": "Collection name must be a single string",
+                        "data": []},
+                        status=status.HTTP_400_BAD_REQUEST)
+                    
+                new_collection = new_db[coll[0]]
 
                 existing_document_count = new_collection.count_documents({})
 
                 if existing_document_count + 1 > 10000:
                     return Response(
-                        {"success": False, "message": f"10,000 number of documents reached in '{coll}' collection",
+                        {"success": False, "message": f"10,000 number of documents reached in '{coll[0]}' collection",
                         "data": []},
                         status=status.HTTP_400_BAD_REQUEST)
-                    
+                
+                # Clean field labels from metadata for accurate matching and convert to a set for uniqueness
+                cleaned_field_labels = set()
+                for label in mongo_db.get('field_labels', []):
+                    if isinstance(label, str):
+                        label = eval(label)  # Convert string representation of list to actual list
+                    if isinstance(label, list):
+                        for field in label:
+                            if isinstance(field, str):
+                                cleaned_field_labels.add(field.strip("[]'\""))
+
                 for key, value in data_to_insert.items():
-                    if key not in mongodb_coll['field_labels']:
+                    key_clean = key.strip("[]").strip("'\"")
+                    if key_clean not in cleaned_field_labels:
                         return Response(
-                        {"success": False, "message": f"New added field '{key}' is not registered in metadata collection",
-                        "data": []},
-                        status=status.HTTP_400_BAD_REQUEST)
+                            {"success": False, "message": f"New added field '{key_clean}' is not registered in metadata collection",
+                            "data": []},
+                            status=status.HTTP_400_BAD_REQUEST)
 
                 data_keys = list(data_to_insert.keys())
                 for key in data_keys:
                     val = data_to_insert[key]
+                    key_clean = key.strip("[]").strip("'\"")
                     insert_date_time_list = []
                     date_time = dowell_time()
-                    insert_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    insert_date_time = date_time["current_time"]
                     insert_date_time_list.insert(0, insert_date_time)
-                    data_to_insert[f"{key}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False, 'data_type':data_type}
+                    data_to_insert[f"{key_clean}_operation"] = {"insert_date_time": insert_date_time_list, 'is_deleted': False, 'data_type': data_type}
 
                 inserted_data = new_collection.insert_one(data_to_insert)
 
@@ -193,7 +232,7 @@ class DataCrudView(APIView):
             return Response({"success": False, "message": str(ve), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            traceback.print_exc()
+            logging.error(str(e), exc_info=True)
             return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
 
