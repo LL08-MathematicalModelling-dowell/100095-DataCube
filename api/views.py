@@ -7,7 +7,8 @@ from rest_framework import status
 from rest_framework.views import APIView
 from pathlib import Path
 from django.conf import settings
-
+from django.views import View
+from django.http import JsonResponse
 from dbdetails.script import MongoDatabases, dowell_time
 from .serializers import *
 import json
@@ -827,3 +828,73 @@ class AddDatabase(APIView):
                 return Response( { "success": False, "error": 'Method not allowed' }, status=status.HTTP_405_METHOD_NOT_ALLOWED )
         except Exception as e:
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CreateMetadataView(View):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            
+            api_key = data.get('api_key')
+            if not api_key:
+                return JsonResponse({"error": "api_key is required"}, status=400)
+            
+            res = check_api_key(api_key)
+            if res != "success":
+                return JsonResponse(
+                    {"success": False, "message": res,
+                     "data": []},
+                    status=status.HTTP_404_NOT_FOUND)
+            
+            dbPrefix = data.get('dbPrefix')
+            if not dbPrefix:
+                return JsonResponse({"error": "dbPrefix is required"}, status=400)
+            
+            userID = data.get('userID')
+            if not userID:
+                return JsonResponse({"error": "userID is required"}, status=400)
+
+            selected_region = data.get('selected_region')
+            if not selected_region:
+                return JsonResponse({"error": "selected_region is required"}, status=400)
+
+            client = settings.MONGODB_CLIENT
+            db = client["datacube_metadata"]
+            coll = db['metadata_collection']
+
+            database_names = [f"{dbPrefix}_untitled_db_{i + 1}" for i in range(25)]
+            collection_names = [f"untitled_coll_{i + 1}" for i in range(10000)]
+            field_labels = [f"untitled_field_{i + 1}" for i in range(10000)]
+
+            final_data = {
+                "number_of_collections": 10000,
+                "database_names": database_names,
+                "number_of_documents": 10000,
+                "number_of_fields": 10000,
+                "field_labels": field_labels,
+                "collection_names": collection_names,
+                "region_id": selected_region,
+                "userID": userID,
+            }
+
+            database = coll.find_one({"database_names": {"$in": database_names}})
+
+            if database:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Database with the same name already exists!'
+                }, status=400)
+            else:
+                inserted_id = coll.insert_one(final_data).inserted_id
+                final_data['_id'] = str(inserted_id)
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Metadata added successfully!',
+                    'data': final_data
+                }, status=201)
+
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
