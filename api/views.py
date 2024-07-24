@@ -830,29 +830,28 @@ class AddDatabase(APIView):
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
-class CreateMetadataView(View):
+class CreateMetadata(View):
     def post(self, request, *args, **kwargs):
         try:
             data = json.loads(request.body)
-            
+            user_id = data.get('user_id')
             api_key = data.get('api_key')
-            if not api_key:
-                return JsonResponse({"error": "api_key is required"}, status=400)
+            payment = data.get('payment', True)
+            workspace_id = data.get('workspace_id')
             
-            res = check_api_key(api_key)
-            if res != "success":
-                return JsonResponse(
-                    {"success": False, "message": res,
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+            if payment:
+                if not api_key:
+                    return JsonResponse({"error": "api_key is required"}, status=400)
+                
+                res = check_api_key(api_key)
+                if res != "success":
+                    return JsonResponse({"success": False, "message": res, "data": []}, status=404)
             
-            dbPrefix = data.get('dbPrefix')
-            if not dbPrefix:
-                return JsonResponse({"error": "dbPrefix is required"}, status=400)
+            if not user_id:
+                return JsonResponse({"error": "user_id is required"}, status=400)
             
-            userID = data.get('userID')
-            if not userID:
-                return JsonResponse({"error": "userID is required"}, status=400)
+            if not workspace_id:
+                return JsonResponse({"error": "workspace_id is required"}, status=400)
 
             selected_region = data.get('selected_region')
             if not selected_region:
@@ -862,7 +861,7 @@ class CreateMetadataView(View):
             db = client["datacube_metadata"]
             coll = db['metadata_collection']
 
-            database_names = [f"{dbPrefix}_untitled_db_{i + 1}" for i in range(25)]
+            database_names = [f"db_{i + 1}_{workspace_id}" for i in range(25)]
             collection_names = [f"untitled_coll_{i + 1}" for i in range(10000)]
             field_labels = [f"untitled_field_{i + 1}" for i in range(10000)]
 
@@ -874,27 +873,18 @@ class CreateMetadataView(View):
                 "field_labels": field_labels,
                 "collection_names": collection_names,
                 "region_id": selected_region,
-                "userID": userID,
+                "userID": user_id,
             }
 
-            database = coll.find_one({"database_names": {"$in": database_names}})
-
-            if database:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Database with the same name already exists!'
-                }, status=400)
-            else:
-                inserted_id = coll.insert_one(final_data).inserted_id
-                final_data['_id'] = str(inserted_id)
-                return JsonResponse({
-                    'status': 'success',
-                    'message': 'Metadata added successfully!',
-                    'data': final_data
-                }, status=201)
+            # Check if any of the database names already exist
+            existing_database = coll.find_one({"database_names": {"$in": database_names}})
+            if existing_database:
+                return JsonResponse({'status': 'error', 'message': 'Database with the same name already exists!'}, status=400)
+            
+            # Insert new metadata
+            inserted_id = coll.insert_one(final_data).inserted_id
+            final_data['_id'] = str(inserted_id)
+            return JsonResponse({'status': 'success', 'message': 'Metadata added successfully!'}, status=201)
 
         except Exception as e:
-            return JsonResponse({
-                'status': 'error',
-                'message': str(e)
-            }, status=500)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
