@@ -874,6 +874,7 @@ class CreateMetadata(View):
                 "collection_names": collection_names,
                 "region_id": selected_region,
                 "userID": user_id,
+                "workspace_id": workspace_id
             }
 
             # Check if any of the database names already exist
