@@ -861,6 +861,11 @@ class CreateMetadata(View):
             db = client["datacube_metadata"]
             coll = db['metadata_collection']
 
+            # Check if the user ID already exists
+            existing_user = coll.find_one({"userID": user_id})
+            if existing_user:
+                return JsonResponse({'status': 'error', 'message': 'User ID already exists!'}, status=400)
+
             database_names = [f"db_{i + 1}_{workspace_id}" for i in range(25)]
             collection_names = [f"untitled_coll_{i + 1}" for i in range(10000)]
             field_labels = [f"untitled_field_{i + 1}" for i in range(10000)]
