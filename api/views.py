@@ -7,7 +7,8 @@ from rest_framework import status
 from rest_framework.views import APIView
 from pathlib import Path
 from django.conf import settings
-
+from django.views import View
+from django.http import JsonResponse
 from dbdetails.script import MongoDatabases, dowell_time
 from .serializers import *
 import json
@@ -827,3 +828,69 @@ class AddDatabase(APIView):
                 return Response( { "success": False, "error": 'Method not allowed' }, status=status.HTTP_405_METHOD_NOT_ALLOWED )
         except Exception as e:
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CreateMetadata(View):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            user_id = data.get('user_id')
+            api_key = data.get('api_key')
+            payment = data.get('payment', True)
+            workspace_id = data.get('workspace_id')
+            
+            if payment:
+                if not api_key:
+                    return JsonResponse({"error": "api_key is required"}, status=400)
+                
+                res = check_api_key(api_key)
+                if res != "success":
+                    return JsonResponse({"success": False, "message": res, "data": []}, status=404)
+            
+            if not user_id:
+                return JsonResponse({"error": "user_id is required"}, status=400)
+            
+            if not workspace_id:
+                return JsonResponse({"error": "workspace_id is required"}, status=400)
+
+            selected_region = data.get('selected_region')
+            if not selected_region:
+                return JsonResponse({"error": "selected_region is required"}, status=400)
+
+            client = settings.MONGODB_CLIENT
+            db = client["datacube_metadata"]
+            coll = db['metadata_collection']
+
+            # Check if the user ID already exists
+            existing_user = coll.find_one({"userID": user_id})
+            if existing_user:
+                return JsonResponse({'status': 'error', 'message': 'User ID already exists!'}, status=400)
+
+            database_names = [f"db_{i + 1}_{workspace_id}" for i in range(25)]
+            collection_names = [f"untitled_coll_{i + 1}" for i in range(10000)]
+            field_labels = [f"untitled_field_{i + 1}" for i in range(10000)]
+
+            final_data = {
+                "number_of_collections": 10000,
+                "database_names": database_names,
+                "number_of_documents": 10000,
+                "number_of_fields": 10000,
+                "field_labels": field_labels,
+                "collection_names": collection_names,
+                "region_id": selected_region,
+                "userID": user_id,
+                "workspace_id": workspace_id
+            }
+
+            # Check if any of the database names already exist
+            existing_database = coll.find_one({"database_names": {"$in": database_names}})
+            if existing_database:
+                return JsonResponse({'status': 'error', 'message': 'Database with the same name already exists!'}, status=400)
+            
+            # Insert new metadata
+            inserted_id = coll.insert_one(final_data).inserted_id
+            final_data['_id'] = str(inserted_id)
+            return JsonResponse({'status': 'success', 'message': 'Metadata added successfully!'}, status=201)
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
