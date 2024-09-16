@@ -1,10 +1,11 @@
-from distutils import config
-from pathlib import Path
 import os
-import datetime
 import sys
 import json
+import configparser as config
+
+from pathlib import Path
 from pymongo import MongoClient
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -126,4 +127,6 @@ STATICFILES_DIRS = [
 STATIC_ROOT = os.path.join(BASE_DIR, 'assets')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-MY_BASE_URL = 'https://datacube.uxlivinglab.online'
+# MY_BASE_URL = 'https://dowelldatacube.uxlivinglab.online'
+# MY_BASE_URL = 'https://datacube.uxlivinglab.online'
+MY_BASE_URL = 'http://127.0.0.1:8000'

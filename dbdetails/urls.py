@@ -2,6 +2,9 @@ from django.urls import path
 
 from .views import *
 
+
+app_name = 'api'
+
 urlpatterns = [
     path('database-details/', GetDataBaseDetails.as_view()),
     path('last-insertion-time/', GetLastInsertionTime.as_view()),

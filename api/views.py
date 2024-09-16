@@ -1,25 +1,36 @@
-import traceback
-import pymongo
-from bson import ObjectId
-from django.core.exceptions import ValidationError
-import requests
-from rest_framework import status
-from rest_framework.views import APIView
-from pathlib import Path
-from django.conf import settings
-
-from dbdetails.script import MongoDatabases, dowell_time
-from .serializers import *
+import re
 import json
+import time
+import logging
+import traceback
+
+from bson import ObjectId
+from rest_framework import status
+
+from django.conf import settings
+from rest_framework.views import APIView
+from dbdetails.script import dowell_time
 from rest_framework.response import Response
-from .helpers import check_api_key, measure_execution_time
+from django.core.exceptions import ValidationError
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-import re
-import time
-from pymongo import MongoClient
-from datetime import datetime
 from rest_framework.exceptions import ValidationError
+
+from api.helpers import check_api_key
+from api.serializers import (
+    AddCollectionPOSTSerializer,
+    AddCollectionSerializer,
+    GetCollectionsSerializer,
+    CreateDatabaseSerializer,
+    AddDatabasePOSTSerializer,
+    InputDeleteSerializer,
+    InputGetSerializer,
+    InputPostSerializer,
+    InputPutSerializer,
+    ListCollectionsSerializer,
+)
+
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DataCrudView(APIView):
@@ -27,7 +38,6 @@ class DataCrudView(APIView):
         try:
             serializer = InputGetSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-
             data = serializer.validated_data
             database = data.get('db_name')
             coll = data.get('coll_name')
@@ -196,7 +206,6 @@ class DataCrudView(APIView):
             traceback.print_exc()
             return Response({"success": False, "message": str(e), "data": []},
                             status=status.HTTP_400_BAD_REQUEST)
-
             
     def put(self, request, *args, **kwargs):
         try:
@@ -416,8 +425,7 @@ class DataCrudView(APIView):
                                     existing_operation["deleted_date_time"] = [deleted_date_time] 
                         else:
                             return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{existing_operation['data_type']}' ",
-                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)
-                               
+                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)          
 
             return Response(
                 {"success": True, "message": f"{modified_count} documents deleted successfully!",
@@ -627,6 +635,7 @@ class GetDataView(APIView):
             traceback.print_exc()
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @method_decorator(csrf_exempt, name='dispatch')
 class CollectionView(APIView):
     def get(self, request, *args, **kwargs):
@@ -673,7 +682,6 @@ class CollectionView(APIView):
                 status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -819,3 +827,212 @@ class AddDatabase(APIView):
                 return Response( { "success": False, "error": 'Method not allowed' }, status=status.HTTP_405_METHOD_NOT_ALLOWED )
         except Exception as e:
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ###################################################################################################################
+# ###################################################################################################################
+# ###################################################################################################################
+# ###################################################################################################################
+
+
+def validate_api_key(api_key):
+    """
+    Validates the API key.
+
+    Parameters:
+    - api_key (str): The API key to be validated.
+
+    Returns:
+    - bool: True if the API key is valid, False otherwise.
+    """
+    return check_api_key(api_key) == "success"
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CreateDatabaseView(APIView):
+    """
+    API endpoint to create a new database in the MongoDB cluster by adding a collection.
+    """
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST request to create a new database in the MongoDB cluster.
+
+        Parameters:
+        - request: The HTTP request object containing the database name, product name, and API key.
+
+        Returns:
+        - Response: A Response object containing the success status, message, and data (if any) in JSON format.
+        """
+        try:
+            # Validate input data
+            serializer = CreateDatabaseSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
+
+            database_name = data.get('db_name').lower()
+            api_key = data.get('api_key')
+            product_name = data.get('product_name')
+
+            # Validate API key
+            if not validate_api_key(api_key):
+                return Response(
+                    {"success": False, "message": "Invalid API key", "data": []},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Establish database connection
+            cluster = settings.MONGODB_CLIENT
+            if database_name in cluster.list_database_names():
+                return Response(
+                    {"success": False, "message": f"Database '{database_name}' already exists", "data": []},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create the new database with an initial collection
+            new_db = cluster[database_name]
+            new_db.create_collection('initial_collection')
+
+            # Create collections with documents based on product name
+            if product_name and product_name == "living lab admin":
+                # Create 1 - 1000 collections, each with 1 document
+                for i in range(1, 1001):
+                    coll = new_db.create_collection(f"collection_{i}")
+                    coll.insert_one({"data": f"document_{i}"})
+
+                # Create 1001 - 10000 collections, each with 1000 documents
+                for i in range(1001, 10001):
+                    coll = new_db.create_collection(f"collection_{i}")
+                    coll.insert_many([{"data": f"document_{j}"} for j in range(1, 1001)])
+
+            return Response(
+                {"success": True, "message": f"Database '{database_name}' created successfully", "data": []},
+                status=status.HTTP_201_CREATED
+            )
+
+        except Exception as e:
+            # Proper logging of exceptions
+            logging.error("Error creating database: %s", str(e))
+            return Response(
+                {"success": False, "message": "An error occurred while creating the database", "data": []},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ListCollectionsView(APIView):
+    """
+    API endpoint to list all collections in a specified database in the MongoDB cluster.
+    """
+    def get(self, request, *args, **kwargs):
+        """
+        Handle GET request to list all collections in a specified database.
+
+        Parameters:
+        - request: The HTTP request object containing the database name and API key.
+
+        Returns:
+        - Response: A Response object containing the success status, message, and list of collections in JSON format.
+        """
+        try:
+            # Use serializer to validate input data
+            serializer = ListCollectionsSerializer(data=request.GET)
+            serializer.is_valid(raise_exception=True)
+            validated_data = serializer.validated_data
+
+            database_name = validated_data['db_name'].lower()
+            api_key = validated_data['api_key']
+
+            # Validate API key
+            if not validate_api_key(api_key):
+                return Response(
+                    {"success": False, "message": "Invalid API key", "data": []},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Establish database connection
+            cluster = settings.MONGODB_CLIENT
+
+            # Check if the database exists
+            if database_name not in cluster.list_database_names():
+                return Response(
+                    {"success": False, "message": f"Database '{database_name}' does not exist", "data": []},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # List collections in the specified database
+            collections = cluster[database_name].list_collection_names()
+            return Response(
+                {"success": True, "message": f"Collections in '{database_name}'", "data": collections},
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            logging.error("Error listing collections: %s", str(e))
+            return Response(
+                {"success": False, "message": "An error occurred while listing collections", "data": []},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddCollectionView(APIView):
+    """
+    API endpoint to create a new collection in a specified database in the MongoDB cluster.
+    """
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST request to create a new collection in a specified database.
+
+        Parameters:
+        - request: The HTTP request object containing the database name, collection name, and API key.
+
+        Returns:
+        - Response: A Response object containing the success status, message, and data (if any) in JSON format.
+        """
+        try:
+            # Validate input data
+            serializer = AddCollectionSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
+
+            database_name = data.get('db_name').lower()
+            collection_name = data.get('coll_names')
+            api_key = data.get('api_key')
+
+            # Validate API key
+            if not validate_api_key(api_key):
+                return Response(
+                    {"success": False, "message": "Invalid API key", "data": []},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Establish database connection
+            cluster = settings.MONGODB_CLIENT
+
+            if database_name not in cluster.list_database_names():
+                return Response(
+                    {"success": False, "message": f"Database '{database_name}' does not exist", "data": []},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            db = cluster[database_name]
+
+            if collection_name in db.list_collection_names():
+                return Response(
+                    {"success": False, "message": f"Collection '{collection_name}' already exists", "data": []},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create the new collection
+            db.create_collection(collection_name)
+            return Response(
+                {"success": True, "message": f"Collection '{collection_name}' created successfully", "data": []},
+                status=status.HTTP_201_CREATED
+            )
+
+        except Exception as e:
+            logging.error("Error creating collection: %s", str(e))
+            return Response(
+                {"success": False, "message": "An error occurred while creating the collection", "data": []},
+                status=status.HTTP_400_BAD_REQUEST
+            )

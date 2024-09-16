@@ -1,5 +1,5 @@
 {
-  "mongo_path": "mongodb://localhost:27017",
+  "mongo_path": "mongodb+srv://jacobdowell:HFzPobvOdqm3CwpT@datacubetest.n2ih9.mongodb.net/?retryWrites=true&w=majority&appName=DatacubeTest",
   "database": "datacube_metadata",
   "collection": "metadata_collection",
   "api_key": "api_key"

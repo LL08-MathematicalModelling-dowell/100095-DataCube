@@ -1,26 +1,26 @@
-import datetime
 import json
-from pathlib import Path
-
 import pymongo
+import datetime
+import requests
+
 from bson import ObjectId
+from drf_yasg import openapi
+from rest_framework import serializers
+
 from bson.json_util import dumps
-from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from django.contrib.auth import authenticate
 from django.http import JsonResponse
+from rest_framework.views import APIView
+from dbdetails.script import MongoDatabases
+from django.contrib.auth import authenticate
+from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK
+from dbdetails.cronjob_script import CronJobs
+from drf_yasg.utils import swagger_auto_schema
+from dateutil.relativedelta import relativedelta
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-import requests
-from rest_framework import serializers
-from rest_framework.response import Response
-from rest_framework.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST)
-from rest_framework.views import APIView
-
-from .cronjob_script import CronJobs
-from .script import MongoDatabases
+from rest_framework.status import HTTP_400_BAD_REQUEST
 
 
 class GetDataBaseDetails(APIView):
@@ -284,7 +284,6 @@ def get_collections(request):
     return JsonResponse({'collections': collections}, status=200, safe=False)
 
 
-
 class GetCollections(APIView):
     def post(self, request, *args, **kwargs):
         databases = request.data.get('databases', [])
@@ -515,7 +514,3 @@ class ExportCluster(APIView):
             return mongodb.export_cluster()
         except Exception as e:
             return Response({"message": str(e), "success": False}, status=HTTP_400_BAD_REQUEST)
-
-
-
-
