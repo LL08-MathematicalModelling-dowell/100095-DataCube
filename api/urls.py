@@ -5,7 +5,7 @@ from .views import (
     AddCollectionView,
 )
 
-app_name = 'db_api'
+app_name = 'api'
 
 urlpatterns = [
     path('crud/', DataCrudView.as_view(), name="crud"),

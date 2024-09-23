@@ -12,7 +12,7 @@ from rest_framework import status
 from django.core.paginator import Paginator
 from django.conf import settings
 from rest_framework.views import APIView
-from dbdetails.script import dowell_time
+from .script import dowell_time
 from rest_framework.response import Response
 from django.core.exceptions import ValidationError
 from django.utils.decorators import method_decorator
@@ -22,15 +22,12 @@ from rest_framework.exceptions import ValidationError
 from api.helpers import check_api_key
 from api.serializers import (
     AddCollectionPOSTSerializer,
-    AddCollectionSerializer,
     GetCollectionsSerializer,
-    CreateDatabaseSerializer,
     AddDatabasePOSTSerializer,
     InputDeleteSerializer,
     InputGetSerializer,
     InputPostSerializer,
     InputPutSerializer,
-    ListCollectionsSerializer,
 )
 
 
@@ -727,6 +724,14 @@ class AddCollectionView(APIView):
             coll_names = data.get('coll_names').split(',')
             api_key = data.get('api_key')
 
+            # Validate the API key
+            res = check_api_key(api_key)
+            if res != "success":
+                return Response(
+                    {"success": False, "message": res, "data": []},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
             # Check if the database exists in the metadata collection
             mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
             if not mongo_db:
@@ -860,6 +865,14 @@ class CreateDatabaseView(APIView):
             api_key = validated_data.get('api_key')
             product_name = validated_data.get('product_name', '').lower()
             db_name = validated_data.get('db_name', '').lower()
+
+            # Validate the API key
+            res = check_api_key(api_key)
+            if res != "success":
+                return Response(
+                    {"success": False, "message": res, "data": []},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
             # MongoDB setup
             cluster = settings.MONGODB_CLIENT

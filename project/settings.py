@@ -42,8 +42,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'drf_yasg',
-    'dbdetails',
-    'home',
+    # 'dbdetails',
+    # 'home',
     'api'
 ]
 
