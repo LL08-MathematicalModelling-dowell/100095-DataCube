@@ -5,8 +5,11 @@ import logging
 import traceback
 
 from bson import ObjectId
+from django.shortcuts import redirect
+import requests
 from rest_framework import status
 
+from django.core.paginator import Paginator
 from django.conf import settings
 from rest_framework.views import APIView
 from dbdetails.script import dowell_time
@@ -29,7 +32,6 @@ from api.serializers import (
     InputPutSerializer,
     ListCollectionsSerializer,
 )
-
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -637,402 +639,306 @@ class GetDataView(APIView):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class CollectionView(APIView):
+class ListCollectionsView(APIView):
+    """
+    API view to list all collections for a given database in Datacube.
+    The provided API key must match the one stored in the metadata collection.
+    """
+
     def get(self, request, *args, **kwargs):
         try:
+            # Validate request data using serializer
             serializer = GetCollectionsSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-
             data = serializer.validated_data
+
+            # Extract database name and API key from request
             database = data.get('db_name')
             api_key = data.get('api_key')
-            payment = data.get('payment', True)
 
-            if payment:
-                res = check_api_key(api_key)
-                if res != "success":
-                    return Response(
-                        {"success": False, "message": res,
-                         "data": []},
-                        status=status.HTTP_404_NOT_FOUND)
-            
-            cluster = settings.MONGODB_CLIENT
-            start_time = time.time()
-            mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
+            # Validate the provided API key
+            res = check_api_key(api_key)
+            if res != "success":
+                return Response(
+                    {"success": False, "message": res, "data": []},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
-            if not mongoDb:
+            # Fetch metadata for the specified database
+            mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
+
+            if not mongo_db:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube", "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
-            
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Ensure the provided API key matches the API key stored in metadata
+            if mongo_db.get('api_key') != api_key:
+                return Response(
+                    {"success": False, "message": "Invalid API key for the specified database", "data": []},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Establish database connection
             cluster = settings.MONGODB_CLIENT
             db = cluster["datacube_metadata"]
             coll = db['metadata_collection']
 
-            # Query MongoDB for metadata records associated with the user ID
-            metadata_records = coll.find({"database_name":database})
+            # Query for collections associated with the specified database
+            metadata_records = coll.find({"database_name": database})
 
             collections = []
             for record in metadata_records:
-                # Add this line for debugging
-                collections.append(record.get('collection_names', []))
-     
+                # Append the list of collection names
+                collections.extend(record.get('collection_names', []))
+
+            # Return the list of collections found
             return Response(
-                {"success": True, "message": f"Collections found!", "data": collections},
-                status=status.HTTP_200_OK)
+                {"success": True, "message": "Collections found!", "data": collections},
+                status=status.HTTP_200_OK
+            )
+
         except Exception as e:
-            return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
+            # Return error response in case of an exception
+            return Response(
+                {"success": False, "message": str(e), "data": []},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class AddCollection(APIView):
+class AddCollectionView(APIView):
+    """
+    API view to handle adding new collections to an existing database in Datacube.
+    Validates the API key, checks if the database and collections already exist, and
+    creates new collections with valid names.
+    """
+
     def post(self, request, *args, **kwargs):
         try:
+            # Validate the request data
             serializer = AddCollectionPOSTSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-
             data = serializer.validated_data
+
+            # Extract data from the request
             database = data.get('db_name')
-            coll_names = data.get('coll_names')
+            coll_names = data.get('coll_names').split(',')
             api_key = data.get('api_key')
-            mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
 
-            if not mongoDb:
+            # Check if the database exists in the metadata collection
+            mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
+            if not mongo_db:
                 return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+                    {"success": False, "message": f"Database '{database}' does not exist in Datacube", "data": []},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
-            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll_names]}})
+            # Ensure the provided API key matches the API key stored in metadata
+            if mongo_db.get('api_key') != api_key:
+                return Response(
+                    {"success": False, "message": "Invalid API key for the specified database", "data": []},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Check if any of the provided collection names already exist in the database
+            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": coll_names}})
             if mongodb_coll:
                 return Response(
-                    {"success": False, "message": f"Collection with name '{coll_names}' already exists",
-                     "data": []},
-                    status=status.HTTP_400_BAD_REQUEST)
+                    {"success": False, "message": f"One or more collections '{coll_names}' already exist", "data": []},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
+            # Validate the API key
             res = check_api_key(api_key)
             if res != "success":
                 return Response(
-                    {"success": False, "message": res,
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
+                    {"success": False, "message": res, "data": []},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
+            # Prepare the final collection data
             final_data = {
-                "number_of_collections": int(data.get('num_collections')),
-                "collection_names": coll_names.split(','),
-                "added_by": ''
+                "number_of_collections": data.get('num_collections'),
+                "collection_names": coll_names,
             }
 
-            # Check if the provided 'dbname' exists in the 'database_name' field
+            # Check if the collections already exist in the specified database
             collections = settings.METADATA_COLLECTION.find_one({"database_name": database})
-
             if collections:
-                # Append collections to the existing 'metadata_collection' document
                 existing_collections = collections.get("collection_names", [])
                 new_collections = final_data.get("collection_names", [])
 
+                # Validate and add new collections
                 for new_collection_name in new_collections:
                     if new_collection_name in existing_collections:
                         return Response(
                             {"success": False,
-                             "message": f"Collection `{new_collection_name}` already exists in Database '{database}'",
+                             "message": f"Collection '{new_collection_name}' already exists in Database '{database}'",
                              "data": []},
-                            status=status.HTTP_409_CONFLICT)
+                            status=status.HTTP_409_CONFLICT
+                        )
 
-                    pattern = re.compile(r'^[A-Za-z0-9_-]*$')
-                    match = pattern.match(new_collection_name)
-                    if not match:
+                    # Validate the collection name format
+                    if not re.match(r'^[A-Za-z0-9_-]*$', new_collection_name):
                         return Response(
                             {"success": False,
-                             "message": f"Collection name `{new_collection_name}` should contain only Alphabet, Numberic OR Underscore",
+                             "message": f"Collection name '{new_collection_name}' should only contain alphabets, numbers, or underscores.",
                              "data": []},
-                            status=status.HTTP_404_NOT_FOUND)
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
 
-                # Combine and remove duplicates
-                updated_collections = list(
-                    set(existing_collections + new_collections))
+                # Merge and update collection names, removing duplicates
+                updated_collections = list(set(existing_collections + new_collections))
 
                 settings.METADATA_COLLECTION.update_one(
                     {"database_name": database},
                     {"$set": {"collection_names": updated_collections}}
                 )
 
+                # Create the collections in the MongoDB database
+                cluster = settings.MONGODB_CLIENT
+                if database not in cluster.list_database_names():
+                    return Response(
+                        {"success": False, "message": f"Database '{database}' does not exist", "data": []},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+                db = cluster[database]
+                for collection_name in new_collections:
+                    if collection_name in db.list_collection_names():
+                        return Response(
+                            {"success": False, "message": f"Collection '{collection_name}' already exists", "data": []},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    # Create the new collection
+                    db.create_collection(collection_name)
+
+                return Response(
+                    {"success": True, "message": f"Collections '{', '.join(new_collections)}' created successfully", "data": []},
+                    status=status.HTTP_201_CREATED
+                )
+
             else:
-                # Create a new 'metadata_collection' document for the database
+                # If the database doesn't exist in metadata, create a new metadata entry
                 settings.METADATA_COLLECTION.insert_one({
                     "database_name": database,
                     "collection_names": final_data["collection_names"],
                     "number_of_collections": final_data["number_of_collections"],
-                    "added_by": final_data["added_by"]
                 })
 
             return Response(
-                {"success": True, "message": f"Collection added successfully!",
-                 "data": []},
-                status=status.HTTP_200_OK)
+                {"success": True, "message": "Collection added successfully!", "data": []},
+                status=status.HTTP_200_OK
+            )
+
         except Exception as e:
-            return Response({"success": False, "message": str(e), "data": []},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class AddDatabase(APIView):
-    def post(self, request, *args, **kwargs):
-        try:
-            if request.method == 'POST':
-                serializer = AddDatabasePOSTSerializer(data=request.data)
-                if serializer.is_valid():
-                    validated_data = serializer.validated_data
-                    username = validated_data.get('username')
-                    api_key = validated_data.get('api_key')
-                    
-                    res = check_api_key(api_key)
-                    if res != "success":
-                        return Response(
-                            {"success": False, "message": res,
-                            "data": []},
-                            status=status.HTTP_404_NOT_FOUND)
-                    if not username:
-                        return Response({'error': 'Username is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-                    cluster = settings.MONGODB_CLIENT
-                    db = cluster["datacube_metadata"]
-                    coll = db['metadata_collection']
-                    
-                    final_data = {
-                        "api_key": str(validated_data.get('api_key')),
-                        "number_of_collections": int(validated_data.get('num_collections')),
-                        "database_name": str(validated_data.get('db_name').lower()),
-                        "number_of_documents": int(validated_data.get('num_documents')),
-                        "number_of_fields": int(validated_data.get('num_fields')),
-                        "field_labels": validated_data.get('field_labels'),
-                        "collection_names": validated_data.get('coll_names'),
-                        "region_id": validated_data.get('region_id'),
-                        "added_by": username,
-                        "session_id": validated_data.get('session_id'),
-                    }
-
-                    database = coll.find_one({"database_name": str(validated_data.get('db_name').lower())})
-                    if database:
-                        return Response({'error': 'Database with the same name already exists!'}, status=status.HTTP_400_BAD_REQUEST)
-                    else:
-                        coll.insert_one(final_data)
-                        return Response(
-                            {"success": True, "message": "Database added successfully!", "data": []},
-                            status=status.HTTP_200_OK)
-                                  
-                else:
-                    return Response( { "success": False, "message": serializer.errors, "data": [] }, status=status.HTTP_400_BAD_REQUEST )
-            else:
-                return Response( { "success": False, "error": 'Method not allowed' }, status=status.HTTP_405_METHOD_NOT_ALLOWED )
-        except Exception as e:
-            return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
-
-
-# ###################################################################################################################
-# ###################################################################################################################
-# ###################################################################################################################
-# ###################################################################################################################
-
-
-def validate_api_key(api_key):
-    """
-    Validates the API key.
-
-    Parameters:
-    - api_key (str): The API key to be validated.
-
-    Returns:
-    - bool: True if the API key is valid, False otherwise.
-    """
-    return check_api_key(api_key) == "success"
+            # Catch and return any unexpected errors
+            return Response(
+                {"success": False, "message": str(e), "data": []},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CreateDatabaseView(APIView):
     """
-    API endpoint to create a new database in the MongoDB cluster by adding a collection.
+    API view to handle creation of a new database with collections and documents based on the product name.
+    The view performs API key validation, database creation, and conditionally adds collections/documents
+    based on the product_name "living lab admin".
     """
+
     def post(self, request, *args, **kwargs):
-        """
-        Handle POST request to create a new database in the MongoDB cluster.
-
-        Parameters:
-        - request: The HTTP request object containing the database name, product name, and API key.
-
-        Returns:
-        - Response: A Response object containing the success status, message, and data (if any) in JSON format.
-        """
         try:
-            # Validate input data
-            serializer = CreateDatabaseSerializer(data=request.data)
+            # Validate the request data
+            serializer = AddDatabasePOSTSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            data = serializer.validated_data
 
-            database_name = data.get('db_name').lower()
-            api_key = data.get('api_key')
-            product_name = data.get('product_name')
+            validated_data = serializer.validated_data
+            api_key = validated_data.get('api_key')
+            product_name = validated_data.get('product_name', '').lower()
+            db_name = validated_data.get('db_name', '').lower()
 
-            # Validate API key
-            if not validate_api_key(api_key):
-                return Response(
-                    {"success": False, "message": "Invalid API key", "data": []},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-
-            # Establish database connection
+            # MongoDB setup
             cluster = settings.MONGODB_CLIENT
-            if database_name in cluster.list_database_names():
+            metadata_db = cluster["datacube_metadata"]
+            metadata_coll = metadata_db['metadata_collection']
+
+            # Check if a database with the same name already exists in metadata
+            existing_metadata = metadata_coll.find_one({"database_name": db_name})
+            if existing_metadata:
                 return Response(
-                    {"success": False, "message": f"Database '{database_name}' already exists", "data": []},
+                    {"error": f"Database '{db_name}' with the same name already exists!"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Create the new database with an initial collection
-            new_db = cluster[database_name]
+            # Ensure the provided API key matches the one stored in metadata for this database (if it exists)
+            if existing_metadata and existing_metadata.get('api_key') != api_key:
+                return Response(
+                    {"success": False, "message": "Invalid API key for the specified database", "data": []},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Ensure the database doesn't already exist in the MongoDB cluster
+            if db_name in cluster.list_database_names():
+                return Response(
+                    {"success": False, "message": f"Database '{db_name}' already exists", "data": []},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Insert metadata into the metadata collection
+            final_data = {
+                "api_key": api_key,
+                "number_of_collections": validated_data.get('num_collections'),
+                "database_name": db_name,
+                "number_of_documents": validated_data.get('num_documents'),
+                "number_of_fields": validated_data.get('num_fields'),
+                "field_labels": validated_data.get('field_labels'),
+                "collection_names": validated_data.get('coll_names'),
+                "region_id": validated_data.get('region_id'),
+            }
+            metadata_coll.insert_one(final_data)
+
+            # Create the new database in MongoDB
+            new_db = cluster[db_name]
             new_db.create_collection('initial_collection')
 
-            # Create collections with documents based on product name
-            if product_name and product_name == "living lab admin":
-                # Create 1 - 1000 collections, each with 1 document
-                for i in range(1, 1001):
-                    coll = new_db.create_collection(f"collection_{i}")
-                    coll.insert_one({"data": f"document_{i}"})
-
-                # Create 1001 - 10000 collections, each with 1000 documents
-                for i in range(1001, 10001):
-                    coll = new_db.create_collection(f"collection_{i}")
-                    coll.insert_many([{"data": f"document_{j}"} for j in range(1, 1001)])
+            # If the product name is "living lab admin", create specific collections and documents
+            if product_name == "living lab admin":
+                self.create_collections_for_living_lab(new_db)
 
             return Response(
-                {"success": True, "message": f"Database '{database_name}' created successfully", "data": []},
-                status=status.HTTP_201_CREATED
-            )
-
-        except Exception as e:
-            # Proper logging of exceptions
-            logging.error("Error creating database: %s", str(e))
-            return Response(
-                {"success": False, "message": "An error occurred while creating the database", "data": []},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class ListCollectionsView(APIView):
-    """
-    API endpoint to list all collections in a specified database in the MongoDB cluster.
-    """
-    def get(self, request, *args, **kwargs):
-        """
-        Handle GET request to list all collections in a specified database.
-
-        Parameters:
-        - request: The HTTP request object containing the database name and API key.
-
-        Returns:
-        - Response: A Response object containing the success status, message, and list of collections in JSON format.
-        """
-        try:
-            # Use serializer to validate input data
-            serializer = ListCollectionsSerializer(data=request.GET)
-            serializer.is_valid(raise_exception=True)
-            validated_data = serializer.validated_data
-
-            database_name = validated_data['db_name'].lower()
-            api_key = validated_data['api_key']
-
-            # Validate API key
-            if not validate_api_key(api_key):
-                return Response(
-                    {"success": False, "message": "Invalid API key", "data": []},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-
-            # Establish database connection
-            cluster = settings.MONGODB_CLIENT
-
-            # Check if the database exists
-            if database_name not in cluster.list_database_names():
-                return Response(
-                    {"success": False, "message": f"Database '{database_name}' does not exist", "data": []},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            # List collections in the specified database
-            collections = cluster[database_name].list_collection_names()
-            return Response(
-                {"success": True, "message": f"Collections in '{database_name}'", "data": collections},
+                {"success": True, "message": "Database and collections created successfully!", "data": []},
                 status=status.HTTP_200_OK
             )
 
         except Exception as e:
-            logging.error("Error listing collections: %s", str(e))
+            # Handle any exceptions that may occur
             return Response(
-                {"success": False, "message": "An error occurred while listing collections", "data": []},
+                {"success": False, "message": str(e), "data": []},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
 
-@method_decorator(csrf_exempt, name='dispatch')
-class AddCollectionView(APIView):
-    """
-    API endpoint to create a new collection in a specified database in the MongoDB cluster.
-    """
-    def post(self, request, *args, **kwargs):
+    def create_collections_for_living_lab(self, new_db):
         """
-        Handle POST request to create a new collection in a specified database.
-
-        Parameters:
-        - request: The HTTP request object containing the database name, collection name, and API key.
-
-        Returns:
-        - Response: A Response object containing the success status, message, and data (if any) in JSON format.
+        Creates collections and inserts documents for the "living lab admin" product.
+        - Collections 1 to 1000 will each have 1 document.
+        - Collections 1001 to 10000 will each have 1000 documents.
         """
         try:
-            # Validate input data
-            serializer = AddCollectionSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            data = serializer.validated_data
+            # Create collections 1 to 1000, each with 1 document
+            for i in range(1, 1001):
+                collection_name = f"collection_{i}"
+                new_db.create_collection(collection_name).insert_one({"data": f"document_{i}"})
 
-            database_name = data.get('db_name').lower()
-            collection_name = data.get('coll_names')
-            api_key = data.get('api_key')
-
-            # Validate API key
-            if not validate_api_key(api_key):
-                return Response(
-                    {"success": False, "message": "Invalid API key", "data": []},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-
-            # Establish database connection
-            cluster = settings.MONGODB_CLIENT
-
-            if database_name not in cluster.list_database_names():
-                return Response(
-                    {"success": False, "message": f"Database '{database_name}' does not exist", "data": []},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            db = cluster[database_name]
-
-            if collection_name in db.list_collection_names():
-                return Response(
-                    {"success": False, "message": f"Collection '{collection_name}' already exists", "data": []},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Create the new collection
-            db.create_collection(collection_name)
-            return Response(
-                {"success": True, "message": f"Collection '{collection_name}' created successfully", "data": []},
-                status=status.HTTP_201_CREATED
-            )
+            # Create collections 1001 to 10000, each with 1000 documents
+            for i in range(1001, 10001):
+                collection_name = f"collection_{i}"
+                documents = [{"data": f"document_{j}"} for j in range(1, 1001)]
+                new_db.create_collection(collection_name).insert_many(documents)
 
         except Exception as e:
-            logging.error("Error creating collection: %s", str(e))
-            return Response(
-                {"success": False, "message": "An error occurred while creating the collection", "data": []},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # Log or handle specific errors related to collection creation
+            raise Exception(f"Error while creating collections: {str(e)}")

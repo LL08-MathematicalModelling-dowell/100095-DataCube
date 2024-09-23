@@ -1,5 +1,4 @@
 from rest_framework import serializers
-
 from django.core.validators import MaxValueValidator
 
 
@@ -64,19 +63,6 @@ class InputDeleteSerializer(serializers.Serializer):
     data_type = serializers.ChoiceField(choices=choose_data_type, required=True)
 
 
-class AddCollectionPOSTSerializer(serializers.Serializer):
-    api_key = serializers.CharField(max_length=510)
-    db_name = serializers.CharField(max_length=100)
-    num_collections = serializers.CharField(max_length=100)
-    coll_names = serializers.CharField(max_length=10000)
-
-
-class GetCollectionsSerializer(serializers.Serializer):
-    api_key = serializers.CharField(max_length=510, required=True)
-    db_name = serializers.CharField(max_length=100)
-    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
-
-
 class NotEmptyStringValidator:
     def __call__(self, value):
         if value == "":
@@ -96,16 +82,28 @@ class NoSpacesValidator:
             raise serializers.ValidationError("This field cannot contain spaces.")
 
 
+class AddCollectionPOSTSerializer(serializers.Serializer):
+    api_key = serializers.CharField(max_length=510)
+    db_name = serializers.CharField(max_length=100)
+    num_collections = serializers.CharField(max_length=100)
+    coll_names = serializers.CharField(max_length=10000)
+
+
+class GetCollectionsSerializer(serializers.Serializer):
+    api_key = serializers.CharField(max_length=510, required=True)
+    db_name = serializers.CharField(max_length=100)
+    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
+
+
 class AddDatabasePOSTSerializer(serializers.Serializer):
     api_key = serializers.CharField(max_length=510, required=True)
-    username = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
+    # username = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
     db_name = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
     num_collections = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
     num_documents = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
     num_fields = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
     field_labels = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
     coll_names = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
-    session_id = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpacesValidator()])
     region_id = serializers.CharField(max_length=510, default='')
 
     def validate_field_labels(self, value):
@@ -120,106 +118,4 @@ class AddDatabasePOSTSerializer(serializers.Serializer):
         if not any(name.strip() for name in names):
             raise serializers.ValidationError("At least one name is required.")
         return names
-
-
-
-#######################################################################################################################################
-#######################################################################################################################################
-#######################################################################################################################################
-#######################################################################################################################################
-
-class CreateDatabaseSerializer(serializers.Serializer):
-    """
-    Serializer for validating data required to create a new database.
-
-    Fields:
-    - db_name (str): The name of the database to be created.
-    - api_key (str): The API key for authentication.
-    - product_name (str, optional): The name of the product, used to determine specific collection creation logic.
-    """
-    db_name = serializers.CharField(
-        max_length=100, 
-        required=True, 
-        help_text="The name of the database to be created."
-    )
-    api_key = serializers.CharField(
-        max_length=100, 
-        required=True, 
-        help_text="The API key for authentication."
-    )
-    product_name = serializers.CharField(
-        max_length=100, 
-        required=False, 
-        help_text="The name of the product. Required for special database creation logic."
-    )
-
-    def validate_db_name(self, value):
-        """
-        Additional validation for the db_name field to ensure it follows expected naming conventions.
-        """
-        if not value.isalnum():
-            raise serializers.ValidationError("Database name must be alphanumeric.")
-        return value
-
-
-class AddCollectionSerializer(serializers.Serializer):
-    """
-    Serializer for validating data required to create a new collection in a database.
-
-    Fields:
-    - db_name (str): The name of the database where the collection will be added.
-    - coll_names (str): The name of the collection to be created.
-    - api_key (str): The API key for authentication.
-    """
-    db_name = serializers.CharField(
-        max_length=100, 
-        required=True, 
-        help_text="The name of the database where the collection will be added."
-    )
-    coll_names = serializers.CharField(
-        max_length=100, 
-        required=True, 
-        help_text="The name of the collection to be created."
-    )
-    api_key = serializers.CharField(
-        max_length=100, 
-        required=True, 
-        help_text="The API key for authentication."
-    )
-
-    def validate_coll_names(self, value):
-        """
-        Additional validation for the coll_names field to ensure it follows expected naming conventions.
-        """
-        if not value.isalnum():
-            raise serializers.ValidationError("Collection name must be alphanumeric.")
-        return value
-
-
-class ListCollectionsSerializer(serializers.Serializer):
-    """
-    Serializer for validating data required to list collections in a database.
-
-    Fields:
-    - db_name (str): The name of the database to list collections from.
-    - api_key (str): The API key for authentication.
-    """
-    db_name = serializers.CharField(
-        max_length=100,
-        required=True,
-        help_text="The name of the database to list collections from."
-    )
-    api_key = serializers.CharField(
-        max_length=100,
-        required=True,
-        help_text="The API key for authentication."
-    )
-
-    def validate_db_name(self, value):
-        """
-        Additional validation for the db_name field to ensure it follows expected naming conventions.
-        """
-        if not value.isalnum():
-            raise serializers.ValidationError("Database name must be alphanumeric.")
-        return value
 
