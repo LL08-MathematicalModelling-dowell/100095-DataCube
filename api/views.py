@@ -65,8 +65,8 @@ class DataCrudView(APIView):
                 return self.method_not_allowed_response()
 
             # API key validation
-            if not self.is_api_key_valid(api_key):
-                return self.unauthorized_response("Invalid API key")
+            # if not self.is_api_key_valid(api_key):
+            #     return self.unauthorized_response("Invalid API key")
 
             # Fetching data
             result = self.fetch_data_from_collection(database, coll, filters, limit, offset)
@@ -153,8 +153,8 @@ class DataCrudView(APIView):
             data_to_insert = data.get('data', {})
 
             # Validate API key once
-            if not self.is_api_key_valid(api_key):
-                return self.unauthorized_response("Invalid API key")
+            # if not self.is_api_key_valid(api_key):
+            #     return self.unauthorized_response("Invalid API key")
 
             # Validate database and collection
             self.validate_database_and_collection(database, coll)
@@ -521,7 +521,7 @@ class ListCollectionsView(APIView):
                 )
 
             # Fetch metadata for the specified database
-            mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
+            mongo_db = settings.METADATA_COLLECTION.find_one({"api_key": api_key})
 
             if not mongo_db:
                 return Response(
@@ -530,7 +530,7 @@ class ListCollectionsView(APIView):
                 )
 
             # Ensure the provided API key matches the API key stored in metadata
-            if mongo_db.get('api_key') != api_key:
+            if mongo_db.get('database_name') != database:
                 return Response(
                     {"success": False, "message": "Invalid API key for the specified database", "data": []},
                     status=status.HTTP_403_FORBIDDEN
@@ -775,12 +775,20 @@ class CreateDatabaseView(APIView):
 
             # Create the new database in MongoDB
             new_db = cluster[db_name]
-            new_db.create_collection('initial_collection')
+            # new_db.create_collection('initial_collection')
 
             # If the product name is "living lab admin", create specific collections and documents
-            if product_name == "living lab admin":
+            if  product_name and product_name == "living lab admin":
                 self.create_collections_for_living_lab(new_db)
-
+            else:
+                collection_names = validated_data.get('coll_names')
+                for collection_name in collection_names:
+                    new_db.create_collection(collection_name)
+                # clreate the rest o the collections if any
+                if len(collection_names) < validated_data.get('num_collections'):
+                    for i in range(len(collection_names), validated_data.get('num_collections')):
+                        new_db.create_collection(f'collection_{i}')
+                
             return Response(
                 {"success": True, "message": "Database and collections created successfully!", "data": []},
                 status=status.HTTP_200_OK

@@ -92,30 +92,33 @@ class AddCollectionPOSTSerializer(serializers.Serializer):
 class GetCollectionsSerializer(serializers.Serializer):
     api_key = serializers.CharField(max_length=510, required=True)
     db_name = serializers.CharField(max_length=100)
-    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
+    # payment = serializers.BooleanField(default=True, allow_null=True, required=False)
 
 
 class AddDatabasePOSTSerializer(serializers.Serializer):
     api_key = serializers.CharField(max_length=510, required=True)
-    # username = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
-    db_name = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
+    db_name = serializers.CharField(max_length=100, required=True, 
+                                     validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
     num_collections = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
     num_documents = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
     num_fields = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
-    field_labels = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
-    coll_names = serializers.CharField(max_length=100, required=True, validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
+    field_labels = serializers.ListField(
+        child=serializers.CharField(validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()]),
+        required=True
+    )
+    coll_names = serializers.ListField(
+        child=serializers.CharField(validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()]),
+        required=True
+    )
     region_id = serializers.CharField(max_length=510, default='')
 
     def validate_field_labels(self, value):
-        labels = value.split(',')
-        for label in labels:
+        for label in value:
             if not label.strip():
                 raise serializers.ValidationError("Each field label must not be empty.")
-        return labels
+        return value
 
     def validate_coll_names(self, value):
-        names = value.split(',')
-        if not any(name.strip() for name in names):
+        if not any(name.strip() for name in value):
             raise serializers.ValidationError("At least one name is required.")
-        return names
-
+        return value
