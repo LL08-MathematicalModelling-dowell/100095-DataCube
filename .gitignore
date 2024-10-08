@@ -44,7 +44,11 @@ coverage.xml
 *.log
 *.pot
 
-
+config.json
+config.json*
+config*.json
+config*.json*
+config.json*
 profile_images/
 env/
 venv/
