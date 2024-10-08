@@ -36,6 +36,18 @@ class DataCrudView(APIView):
     """
     A view for handling CRUD operations on MongoDB collections.
     """
+    def get_serializer_class(self):
+        """
+        Returns the serializer class based on the request method.
+        """
+        if self.request.method == 'GET':
+            return InputGetSerializer
+        elif self.request.method == 'POST':
+            return InputPostSerializer
+        elif self.request.method == 'PUT':
+            return InputPutSerializer
+        elif self.request.method == 'DELETE':
+            return InputDeleteSerializer
 
     def get(self, request, *args, **kwargs):
         """
@@ -65,8 +77,8 @@ class DataCrudView(APIView):
                 return self.method_not_allowed_response()
 
             # API key validation
-            # if not self.is_api_key_valid(api_key):
-            #     return self.unauthorized_response("Invalid API key")
+            if not self.is_api_key_valid(api_key):
+                return self.unauthorized_response("Invalid API key")
 
             # Fetching data
             result = self.fetch_data_from_collection(database, coll, filters, limit, offset)
@@ -570,6 +582,7 @@ class AddCollectionView(APIView):
     Validates the API key, checks if the database and collections already exist, and
     creates new collections with valid names.
     """
+    serializer_class = AddCollectionPOSTSerializer
 
     def post(self, request, *args, **kwargs):
         try:
@@ -713,6 +726,7 @@ class CreateDatabaseView(APIView):
     The view performs API key validation, database creation, and conditionally adds collections/documents
     based on the product_name "living lab admin".
     """
+    serializer_class = AddDatabasePOSTSerializer
 
     def post(self, request, *args, **kwargs):
         try:
@@ -775,7 +789,6 @@ class CreateDatabaseView(APIView):
 
             # Create the new database in MongoDB
             new_db = cluster[db_name]
-            # new_db.create_collection('initial_collection')
 
             # If the product name is "living lab admin", create specific collections and documents
             if  product_name and product_name == "living lab admin":
