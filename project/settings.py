@@ -32,6 +32,8 @@ if len(sys.argv) >= 2 and sys.argv[1] == 'runserver':
 else:
     DEBUG = False
 
+ALLOWED_HOSTS = ["http://8000-ll08mathema-100095dowel-uaic56b94q2.ws-eu116.gitpod.io/"]
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

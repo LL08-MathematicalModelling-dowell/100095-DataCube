@@ -18,7 +18,7 @@ class InputGetSerializer(serializers.Serializer):
     api_key = serializers.CharField(max_length=510, required=True)
     limit = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=False)
-    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
+    # payment = serializers.BooleanField(default=True, allow_null=True, required=False)
     data_type = serializers.ChoiceField(choices=choose_data_type, required=True)
 
 
@@ -37,7 +37,7 @@ class InputPostSerializer(serializers.Serializer):
     operation = serializers.ChoiceField(choices=operations, required=True)
     data = serializers.JSONField(required=True)
     # payment = serializers.BooleanField(default=True, allow_null=True, required=False)
-    is_deleted = serializers.BooleanField(default=False)
+    # is_deleted = serializers.BooleanField(default=False)
     data_type = serializers.ChoiceField(choices=choose_data_type, required=True)
 
 
@@ -49,7 +49,7 @@ class InputPutSerializer(serializers.Serializer):
     operation = serializers.CharField(max_length=10)
     query = serializers.JSONField(required=False)
     update_data = serializers.JSONField(required=False)
-    payment = serializers.BooleanField(default=True, allow_null=True, required=False)
+    # payment = serializers.BooleanField(default=True, allow_null=True, required=False)
     data_type = serializers.ChoiceField(choices=choose_data_type, required=True)
 
 
