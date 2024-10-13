@@ -1,8 +1,4 @@
 import re
-import json
-import time
-import logging
-import requests
 import traceback
 
 from bson import ObjectId
@@ -14,10 +10,8 @@ from django.shortcuts import redirect
 from rest_framework.views import APIView
 from django.core.paginator import Paginator
 from rest_framework.response import Response
-from django.core.exceptions import ValidationError
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.exceptions import ValidationError
 from drf_yasg.utils import swagger_auto_schema
 
 from api.helpers import check_api_key
@@ -30,8 +24,6 @@ from api.serializers import (
     InputPostSerializer,
     InputPutSerializer,
 )
-
-
 @method_decorator(csrf_exempt, name='dispatch')
 class DataCrudView(APIView):
     """
@@ -63,24 +55,21 @@ class DataCrudView(APIView):
             database = data.get('db_name')
             coll = data.get('coll_name')
             operation = data.get('operation')
-            api_key = data.get('api_key')
-            filters = serializer.validated_data.get('filters', {})
-            limit = data.get('limit')
-            offset = data.get('offset')
-
-            # Convert ObjectId strings to ObjectId type where applicable
-            filters = self.convert_object_id(filters)
+            # api_key = data.get('api_key')
+            filters = self.convert_object_id(data.get('filters', {}))
+            limit = data.get('limit', 50)  # Default limit to 50 if not provided
+            offset = data.get('offset', 0)  # Default offset to 0 if not provided
 
             # Validate database and collection existence
             self.validate_database_and_collection(database, coll)
 
-            # Check operation
             if operation != "fetch":
                 return self.method_not_allowed_response()
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # API key validation
-            if not self.is_api_key_valid(api_key):
-                return self.unauthorized_response("Invalid API key")
+            # if not self.is_api_key_valid(api_key):
+            #     return self.unauthorized_response("Invalid API key")
 
             # Fetching data
             result = self.fetch_data_from_collection(database, coll, filters, limit, offset)
@@ -112,32 +101,28 @@ class DataCrudView(APIView):
         if not mongo_db:
             raise ValueError(f"Database '{database}' does not exist in Datacube")
 
-        mongodb_coll = settings.METADATA_COLLECTION.find_one({"database_name": database, "collection_names": {"$in": [coll]}})
-        if not mongodb_coll:
+        if coll not in mongo_db.get("collection_names", []):
             raise ValueError(f"Collection '{coll}' does not exist in Datacube database")
 
-    def is_api_key_valid(self, api_key):
-        """
-        Validates the provided API key.
-        """
-        return check_api_key(api_key) == "success"
+    # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
+    # def is_api_key_valid(self, api_key):
+    #     """
+    #     Validates the provided API key.
+    #     """
+    #     return check_api_key(api_key) == "success"
 
-    def fetch_data_from_collection(self, database, coll, filters, limit, offset):
+    def fetch_data_from_collection(self, database, coll, filters, limit=50, offset=0):
         """
         Fetches data from the specified collection with optional filters, limit, and offset.
         """
         cluster = settings.MONGODB_CLIENT
         new_collection = cluster[f"datacube_{database}"][coll]
-        
-        query = new_collection.find(filters)
-        if offset is not None:
-            query = query.skip(offset)
-        if limit is not None:
-            query = query.limit(limit)
 
+        query = new_collection.find(filters).skip(offset).limit(limit)
         result = list(query)
+
         for doc in result:
-            doc['_id'] = str(doc['_id'])
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string for JSON serialization
         return result
 
     def method_not_allowed_response(self):
@@ -164,12 +149,13 @@ class DataCrudView(APIView):
             data = serializer.validated_data
             database = data.get('db_name')
             coll = data.get('coll_name')
-            api_key = data.get('api_key')
+            # api_key = data.get('api_key')
             data_to_insert = data.get('data', {})
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # Validate API key once
-            if not self.is_api_key_valid(api_key):
-                return self.unauthorized_response("Invalid API key")
+            # if not self.is_api_key_valid(api_key):
+            #     return self.unauthorized_response("Invalid API key")
 
             # Validate database and collection
             self.validate_database_and_collection(database, coll)
@@ -215,12 +201,8 @@ class DataCrudView(APIView):
             coll = data.get('coll_name')
             operation = data.get('operation')
             data_type = data.get('data_type')
-            query = data.get('query', {})
+            query = self.convert_object_id(data.get('query', {}))
             update_data = data.get('update_data', {})
-            api_key = data.get('api_key')
-
-            # Convert ObjectId strings to ObjectId type where applicable
-            query = self.convert_object_id(query)
 
             # Validate database and collection
             self.validate_database_and_collection(database, coll)
@@ -231,9 +213,10 @@ class DataCrudView(APIView):
             if data_type not in serializer.choose_data_type:
                 return self.method_not_allowed_response()
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # API key validation
-            if not self.is_api_key_valid(api_key):
-                return self.unauthorized_response("Invalid API key")
+            # if not self.is_api_key_valid(api_key):
+            #     return self.unauthorized_response("Invalid API key")
 
             new_collection = settings.MONGODB_CLIENT[f"datacube_{database}"][coll]
 
@@ -259,7 +242,7 @@ class DataCrudView(APIView):
         modified_count = 0
         for key, value in update_data.items():
             if key not in existing_document:
-                return Response({"success": False, "message": f"Field '{key}' not found in document", "data": []}, status=status.HTTP_400_BAD_REQUEST)
+                raise ValueError(f"Field '{key}' not found in document")
             if existing_document[key] != value:
                 existing_document[key] = value
                 modified_count += 1
@@ -279,11 +262,7 @@ class DataCrudView(APIView):
             coll = data.get('coll_name')
             operation = data.get('operation')
             data_type = data.get('data_type')
-            query = data.get('query', {})
-            api_key = data.get('api_key')
-
-            # Convert ObjectId strings to ObjectId type where applicable
-            query = self.convert_object_id(query)
+            query = self.convert_object_id(data.get('query', {}))
 
             # Validate database and collection
             self.validate_database_and_collection(database, coll)
@@ -294,9 +273,10 @@ class DataCrudView(APIView):
             if data_type not in serializer.choose_data_type:
                 return self.method_not_allowed_response()
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # API key validation
-            if not self.is_api_key_valid(api_key):
-                return self.unauthorized_response("Invalid API key")
+            # if not self.is_api_key_valid(api_key):
+            #     return self.unauthorized_response("Invalid API key")
 
             new_collection = settings.MONGODB_CLIENT[f"datacube_{database}"][coll]
 
@@ -329,44 +309,50 @@ class ListCollectionsView(APIView):
 
             # Extract database name and API key from request
             database = data.get('db_name')
-            api_key = data.get('api_key')
+            # api_key = data.get('api_key')
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # Validate the provided API key
-            res = check_api_key(api_key)
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res, "data": []},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            # res = check_api_key(api_key)
+            # if res != "success":
+            #     return Response(
+            #         {"success": False, "message": res, "data": []},
+            #         status=status.HTTP_404_NOT_FOUND
+            #     )
 
             # Fetch metadata for the specified database
-            mongo_db = settings.METADATA_COLLECTION.find_one({"api_key": api_key})
-
+            # mongo_db = settings.METADATA_COLLECTION.find_one({"api_key": api_key})
+            mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
             if not mongo_db:
                 return Response(
                     {"success": False, "message": f"Database '{database}' does not exist in Datacube", "data": []},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # Ensure the provided API key matches the API key stored in metadata
-            if mongo_db.get('database_name') != database:
-                return Response(
-                    {"success": False, "message": "Invalid API key for the specified database", "data": []},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+            # if mongo_db.get('database_name') != database:
+            #     return Response(
+            #         {"success": False, "message": "Invalid API key for the specified database", "data": []},
+            #         status=status.HTTP_403_FORBIDDEN
+            #     )
 
-            # Establish database connection
+            # Establish MongoDB connection
             cluster = settings.MONGODB_CLIENT
             db = cluster["datacube_metadata"]
             coll = db['metadata_collection']
 
             # Query for collections associated with the specified database
-            metadata_records = coll.find({"database_name": database})
+            metadata_record = coll.find_one({"database_name": database})
 
-            collections = []
-            for record in metadata_records:
-                # Append the list of collection names
-                collections.extend(record.get('collection_names', []))
+            if not metadata_record:
+                return Response(
+                    {"success": False, "message": f"No collections found for database '{database}'", "data": []},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Extract the collection names
+            collections = metadata_record.get('collection_names', [])
 
             # Return the list of collections found
             return Response(
@@ -402,15 +388,15 @@ class AddCollectionView(APIView):
             # Extract data from the request
             database = data.get('db_name')
             coll_names = data.get('coll_names').split(',')
-            api_key = data.get('api_key')
+            # api_key = data.get('api_key')
 
             # Validate the API key
-            res = check_api_key(api_key)
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res, "data": []},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            # res = check_api_key(api_key)
+            # if res != "success":
+            #     return Response(
+            #         {"success": False, "message": res, "data": []},
+            #         status=status.HTTP_404_NOT_FOUND
+            #     )
 
             # Check if the database exists in the metadata collection
             mongo_db = settings.METADATA_COLLECTION.find_one({"database_name": database})
@@ -420,12 +406,13 @@ class AddCollectionView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # Ensure the provided API key matches the API key stored in metadata
-            if mongo_db.get('api_key') != api_key:
-                return Response(
-                    {"success": False, "message": "Invalid API key for the specified database", "data": []},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+            # if mongo_db.get('api_key') != api_key:
+            #     return Response(
+            #         {"success": False, "message": "Invalid API key for the specified database", "data": []},
+            #         status=status.HTTP_403_FORBIDDEN
+            #     )
 
             # Check if any of the provided collection names already exist in the database
             mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": coll_names}})
@@ -433,14 +420,6 @@ class AddCollectionView(APIView):
                 return Response(
                     {"success": False, "message": f"One or more collections '{coll_names}' already exist", "data": []},
                     status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Validate the API key
-            res = check_api_key(api_key)
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res, "data": []},
-                    status=status.HTTP_404_NOT_FOUND
                 )
 
             # Prepare the final collection data
@@ -544,17 +523,18 @@ class CreateDatabaseView(APIView):
             serializer.is_valid(raise_exception=True)
 
             validated_data = serializer.validated_data
-            api_key = validated_data.get('api_key')
+            # api_key = validated_data.get('api_key')
             product_name = validated_data.get('product_name', '').lower()
             db_name = validated_data.get('db_name', '').lower()
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # Validate the API key
-            res = check_api_key(api_key)
-            if res != "success":
-                return Response(
-                    {"success": False, "message": res, "data": []},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            # res = check_api_key(api_key)
+            # if res != "success":
+            #     return Response(
+            #         {"success": False, "message": res, "data": []},
+            #         status=status.HTTP_404_NOT_FOUND
+            #     )
 
             # MongoDB setup
             cluster = settings.MONGODB_CLIENT
@@ -569,12 +549,13 @@ class CreateDatabaseView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # THIS CODE IS COMMENTED OUT FOR NOW BECAUSE API KEI SYSTEM IS NOT IMPLEMENTED YET AND THE APP IS USED IN-HOUSE
             # Ensure the provided API key matches the one stored in metadata for this database (if it exists)
-            if existing_metadata and existing_metadata.get('api_key') != api_key:
-                return Response(
-                    {"success": False, "message": "Invalid API key for the specified database", "data": []},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+            # if existing_metadata and existing_metadata.get('api_key') != api_key:
+            #     return Response(
+            #         {"success": False, "message": "Invalid API key for the specified database", "data": []},
+            #         status=status.HTTP_403_FORBIDDEN
+            #     )
 
             # Ensure the database doesn't already exist in the MongoDB cluster
             if db_name in cluster.list_database_names():
@@ -585,7 +566,7 @@ class CreateDatabaseView(APIView):
 
             # Insert metadata into the metadata collection
             final_data = {
-                "api_key": api_key,
+                # "api_key": api_key,
                 "number_of_collections": validated_data.get('num_collections'),
                 "database_name": db_name,
                 "number_of_documents": validated_data.get('num_documents'),
@@ -600,16 +581,20 @@ class CreateDatabaseView(APIView):
             new_db = cluster[db_name]
 
             # If the product name is "living lab admin", create specific collections and documents
-            if  product_name and product_name == "living lab admin":
+            if product_name and product_name == "living lab admin":
                 self.create_collections_for_living_lab(new_db)
             else:
                 collection_names = validated_data.get('coll_names')
+                num_collections = validated_data.get('num_collections')
+                
+                # Create collections from provided names
                 for collection_name in collection_names:
                     new_db.create_collection(collection_name)
-                # clreate the rest o the collections if any
-                if len(collection_names) < validated_data.get('num_collections'):
-                    for i in range(len(collection_names), validated_data.get('num_collections')):
-                        new_db.create_collection(f'collection_{i}')
+                
+                # Ensure we create the exact number of collections as specified in num_collections
+                if len(collection_names) < num_collections:
+                    for i in range(len(collection_names), num_collections):
+                        new_db.create_collection(f'collection_{i+1}')
                 
             return Response(
                 {"success": True, "message": "Database and collections created successfully!", "data": []},
@@ -630,222 +615,33 @@ class CreateDatabaseView(APIView):
         - Collections 1001 to 10000 will each have 1000 documents.
         """
         try:
-            # Create collections 1 to 1000, each with 1 document
+            # Create collections 1 to 1000, each with 1 document (using bulk insert for optimization)
+            collections_data = []
             for i in range(1, 1001):
-                collection_name = f"collection_{i}"
-                new_db.create_collection(collection_name).insert_one({"data": f"document_{i}"})
+                collections_data.append(
+                    {
+                        "collection_name": f"collection_{i}",
+                        "documents": [{"data": f"document_{i}"}]
+                    }
+                )
+            for data in collections_data:
+                collection = new_db.create_collection(data["collection_name"])
+                collection.insert_many(data["documents"])
 
             # Create collections 1001 to 10000, each with 1000 documents
+            collections_data = []
             for i in range(1001, 10001):
-                collection_name = f"collection_{i}"
                 documents = [{"data": f"document_{j}"} for j in range(1, 1001)]
-                new_db.create_collection(collection_name).insert_many(documents)
+                collections_data.append(
+                    {
+                        "collection_name": f"collection_{i}",
+                        "documents": documents
+                    }
+                )
+            for data in collections_data:
+                collection = new_db.create_collection(data["collection_name"])
+                collection.insert_many(data["documents"])
 
         except Exception as e:
             # Log or handle specific errors related to collection creation
             raise Exception(f"Error while creating collections: {str(e)}")
-
-
-
-
-'''
-@method_decorator(csrf_exempt, name='dispatch')
-class GetDataView(APIView):
-    def get(self, request, *args, **kwargs):
-        try:
-            database = request.GET.get('db_name')
-            coll = request.GET.get('coll_name')
-            operation = request.GET.get('operation')
-            api_key = request.GET.get('api_key')
-            filters_json = request.GET.get('filters')
-            filters = json.loads(filters_json) if filters_json else {}
-            limit = int(request.GET.get('limit')) if 'limit' in request.GET else None
-            offset = int(request.GET.get('offset')) if 'offset' in request.GET else None
-            payment = request.GET('payment', True)
-
-            for key, value in filters.items():
-                if key in ["id", "_id"]:
-                    try:
-                        filters[key] = ObjectId(value)
-                    except Exception as ex:
-                        print(ex)
-                        pass
-
-            # config = json.loads(Path(str(settings.BASE_DIR) + '/config.json').read_text())
-            cluster = settings.MONGODB_CLIENT
-
-
-            # start_time = time.time()
-            mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-            # end_time = time.time()
-            # print(f"fetch operation find one coll took: {measure_execution_time(start_time, end_time)} seconds")
-
-            if not mongoDb:
-                return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
-
-            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            if not mongodb_coll:
-                return Response(
-                    {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                     "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
-
-            new_db = cluster["datacube_" + database]
-            new_collection = new_db[coll]
-
-            if operation not in ["fetch"]:
-                return Response({"success": False, "message": "Operation not allowed", "data": []},
-                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
-            if payment:
-                res = check_api_key(api_key)
-
-                if res != "success":
-                    return Response(
-                        {"success": False, "message": res,
-                         "data": []},
-                        status=status.HTTP_404_NOT_FOUND)
-
-            result = None
-            if operation == "fetch":
-                query = new_collection.find(filters)
-                if offset is not None:
-                    query = query.skip(offset)
-                if limit is not None:
-                    query = query.limit(limit)
-                result = query
-            result = list(result)
-            for doc in result:
-                doc['_id'] = str(doc['_id'])
-            if len(result) > 0:
-                msg = "Data found!"
-            else:
-                msg = "No data exists for this query/collection"
-
-            return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            traceback.print_exc()
-            return Response({"success": False, "message": str(e), "data": []},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request, *args, **kwargs):
-        try:
-            serializer = InputGetSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            data = serializer.validated_data
-            database = data.get('db_name')
-            coll = data.get('coll_name')
-            operation = data.get('operation')
-            data_type = data.get('data_type')
-            api_key = data.get('api_key')
-            filters = serializer.validated_data.get('filters', {})
-            limit = int(data.get('limit')) if 'limit' in data else None
-            offset = int(data.get('offset')) if 'offset' in data else None
-            payment = data.get('payment', True)
-            
-            for key, value in filters.items():
-                if key == "_id":
-                    try:
-                        filters[key] = ObjectId(value)
-                    except Exception as ex:
-                        print(ex)
-                        pass
-
-            cluster = settings.MONGODB_CLIENT
-
-            mongoDb = settings.METADATA_COLLECTION.find_one({"database_name": database})
-
-            if not mongoDb:
-                return Response(
-                    {"success": False, "message": f"Database '{database}' does not exist in Datacube",
-                    "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
-
-            mongodb_coll = settings.METADATA_COLLECTION.find_one({"collection_names": {"$in": [coll]}})
-            if not mongodb_coll:
-                return Response(
-                    {"success": False, "message": f"Collection '{coll}' does not exist in Datacube database",
-                    "data": []},
-                    status=status.HTTP_404_NOT_FOUND)
-
-            new_db = cluster["datacube_" + database]
-            new_collection = new_db[coll]
-
-            if operation not in ["fetch"]:
-                return Response({"success": False, "message": "Operation not allowed", "data": []},
-                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
-            
-            if data_type not in serializer.choose_data_type:
-                return Response({"success": False, "message": "Data type not allowed", "data": []},
-                                status=status.HTTP_405_METHOD_NOT_ALLOWED)
-                
-            if payment:
-                res = check_api_key(api_key)
-                if res != "success":
-                    return Response(
-                        {"success": False, "message": res,
-                        "data": []},
-                        status=status.HTTP_404_NOT_FOUND)
-                    
-            result = None
-            if operation == "fetch":
-                query = new_collection.find(filters)
-                if offset is not None:
-                    query = query.skip(offset)
-                if limit is not None:
-                    query = query.limit(limit)
-                result = list(query)
-                for doc in result:
-                    doc['_id'] = str(doc['_id'])
-                    date_time = dowell_time()
-                    fetch_date_time = date_time["current_time"] #datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                    keys_to_delete = []
-                    for key in list(doc.keys()):
-                        if key.endswith("_operation"):
-                            operation_data = doc[key]
-                            if doc[key]['data_type']==data_type:
-                                
-                                if operation_data.get("is_deleted", False):
-                                    keys_to_delete.append(key)
-                                    keys_to_delete.append(key[:-len("_operation")])
-                                elif not 'fetch_date_time' in operation_data:
-                                    operation_data['fetch_date_time'] = [fetch_date_time]
-                                    update_query = {
-                                        "$set": {
-                                            key + ".fetch_date_time": operation_data["fetch_date_time"]
-                                        }
-                                    }
-                                    new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
-                                elif 'fetch_date_time' in operation_data and not operation_data["is_deleted"]:
-                                    operation_data['fetch_date_time'].insert(0, fetch_date_time)
-                                    update_query = {
-                                        "$set": {
-                                            key + ".fetch_date_time": operation_data["fetch_date_time"]
-                                        }
-                                    }
-                                    new_collection.update_one({"_id": ObjectId(doc['_id'])}, update_query)
-                            else:
-                                return Response({"success": False, "message": f"Got data_type: '{data_type}' But Expected data_type: '{doc[key]['data_type']}' ",
-                                                 "data": []}, status=status.HTTP_400_BAD_REQUEST)
-
-                    for key in keys_to_delete:
-                        if key in doc:
-                            del doc[key]
-
-            if len(result) > 0 and all("_id" in doc and len(doc) > 1 for doc in result):
-                msg = "Data found!"
-            else:
-                msg = "No data exists for this query/collection"
-                return Response({"success": True, "message": msg, "data": []}, status=status.HTTP_200_OK)
-            
-            return Response({"success": True, "message": msg, "data": result}, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            traceback.print_exc()
-            return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
-
-'''
-

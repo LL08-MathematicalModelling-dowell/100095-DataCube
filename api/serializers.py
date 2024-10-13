@@ -15,7 +15,7 @@ class InputGetSerializer(serializers.Serializer):
     db_name = serializers.CharField(max_length=255, required=True)
     operation = serializers.ChoiceField(choices=operations, required=True)
     filters = serializers.JSONField(required=False)
-    api_key = serializers.CharField(max_length=510, required=True)
+    # api_key = serializers.CharField(max_length=510, required=True)
     limit = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=False)
     # payment = serializers.BooleanField(default=True, allow_null=True, required=False)
@@ -31,7 +31,7 @@ class InputPostSerializer(serializers.Serializer):
     ]
     choose_data_type = ['real_data', 'testing_data', 'learning_data', 'deleted_data']
     
-    api_key = serializers.CharField(max_length=510, required=True)
+    # api_key = serializers.CharField(max_length=510, required=True)
     coll_name = serializers.CharField(max_length=255, required=True)
     db_name = serializers.CharField(max_length=255, required=True)
     operation = serializers.ChoiceField(choices=operations, required=True)
@@ -43,7 +43,7 @@ class InputPostSerializer(serializers.Serializer):
 
 class InputPutSerializer(serializers.Serializer):
     choose_data_type = ['real_data', 'testing_data', 'learning_data', 'deleted_data']
-    api_key = serializers.CharField(max_length=510, required=True)
+    # api_key = serializers.CharField(max_length=510, required=True)
     db_name = serializers.CharField(max_length=100)
     coll_name = serializers.CharField(max_length=100)
     operation = serializers.CharField(max_length=10)
@@ -55,7 +55,7 @@ class InputPutSerializer(serializers.Serializer):
 
 class InputDeleteSerializer(serializers.Serializer):
     choose_data_type = ['real_data', 'testing_data', 'learning_data', 'deleted_data']
-    api_key = serializers.CharField(max_length=510)
+    # api_key = serializers.CharField(max_length=510)
     db_name = serializers.CharField(max_length=100)
     coll_name = serializers.CharField(max_length=100)
     operation = serializers.CharField(max_length=10)
@@ -83,20 +83,20 @@ class NoSpacesValidator:
 
 
 class AddCollectionPOSTSerializer(serializers.Serializer):
-    api_key = serializers.CharField(max_length=510)
+    # api_key = serializers.CharField(max_length=510)
     db_name = serializers.CharField(max_length=100)
     num_collections = serializers.CharField(max_length=100)
     coll_names = serializers.CharField(max_length=10000)
 
 
 class GetCollectionsSerializer(serializers.Serializer):
-    api_key = serializers.CharField(max_length=510, required=True)
+    # api_key = serializers.CharField(max_length=510, required=True)
     db_name = serializers.CharField(max_length=100)
     # payment = serializers.BooleanField(default=True, allow_null=True, required=False)
 
 
 class AddDatabasePOSTSerializer(serializers.Serializer):
-    api_key = serializers.CharField(max_length=510, required=True)
+    # api_key = serializers.CharField(max_length=510, required=True)
     db_name = serializers.CharField(max_length=100, required=True, 
                                      validators=[NotEmptyStringValidator(), NoSpecialCharsValidator(), NoSpacesValidator()])
     num_collections = serializers.IntegerField(required=True, validators=[MaxValueValidator(10000)])
