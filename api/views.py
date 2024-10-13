@@ -137,7 +137,7 @@ class DataCrudView(APIView):
         """
         return Response({"success": False, "message": message, "data": []}, status=status.HTTP_401_UNAUTHORIZED)
 
-    @swagger_auto_schema(query_serializer=InputPostSerializer, responses={201: 'Created'})
+    @swagger_auto_schema(request_body=InputPostSerializer, responses={201: 'Created'})
     def post(self, request, *args, **kwargs):
         """
         Handles POST requests to insert new data into a specified MongoDB collection.
@@ -187,7 +187,7 @@ class DataCrudView(APIView):
             traceback.print_exc()
             return Response({"success": False, "message": str(e), "data": []}, status=status.HTTP_400_BAD_REQUEST)
 
-    @swagger_auto_schema(query_serializer=InputPutSerializer, responses={200: 'Updated'})
+    @swagger_auto_schema(request_body=InputPutSerializer, responses={200: 'Updated'})
     def put(self, request, *args, **kwargs):
         """
         Handles PUT requests to update existing data in a specified MongoDB collection.
@@ -248,7 +248,7 @@ class DataCrudView(APIView):
                 modified_count += 1
         return modified_count
 
-    @swagger_auto_schema(query_serializer=InputDeleteSerializer, responses={200: 'Deleted'})
+    @swagger_auto_schema(request_body=InputDeleteSerializer, responses={200: 'Deleted'})
     def delete(self, request, *args, **kwargs):
         """
         Handles DELETE requests to remove data from a specified MongoDB collection.
@@ -377,7 +377,7 @@ class AddCollectionView(APIView):
     """
     serializer_class = AddCollectionPOSTSerializer
 
-    @swagger_auto_schema(query_serializer=AddCollectionPOSTSerializer, responses={201: 'Created'})
+    @swagger_auto_schema(request_body=AddCollectionPOSTSerializer, responses={201: 'Created'})
     def post(self, request, *args, **kwargs):
         try:
             # Validate the request data
@@ -515,7 +515,7 @@ class CreateDatabaseView(APIView):
     """
     serializer_class = AddDatabasePOSTSerializer
 
-    @swagger_auto_schema(query_serializer=AddDatabasePOSTSerializer, responses={200: 'Created'})
+    @swagger_auto_schema(request_body=AddDatabasePOSTSerializer, responses={200: 'Created'})
     def post(self, request, *args, **kwargs):
         try:
             # Validate the request data
